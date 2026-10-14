@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "documentId": "tree_quality",
+  "revision": 0,
+  "title": "重名节点的组织关系",
+  "canvas": {
+    "width": 1200,
+    "height": 740,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "重名节点的组织关系",
+      "id": "title",
+      "x": 40,
+      "y": 20,
+      "width": 1100,
+      "height": 48,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "tree",
+      "root": {
+        "label": "组织结构与负责人",
+        "children": [
+          {
+            "label": "产品与研发团队",
+            "children": [
+              {
+                "label": "负责人",
+                "children": []
+              }
+            ]
+          },
+          {
+            "label": "运营与实施团队",
+            "children": [
+              {
+                "label": "负责人",
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      "id": "organization",
+      "x": 60,
+      "y": 120,
+      "width": 280,
+      "height": 180
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

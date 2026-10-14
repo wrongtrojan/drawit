@@ -1,3 +1,4 @@
+import { contentSize } from "./contentLayout.js";
 import type { DiagramNode } from "./schema.js";
 
 export interface Box {
@@ -71,6 +72,8 @@ export function contentBounds(nodes: DiagramNode[], canvas: { width: number; hei
 
 // Semantic endpoints determine horizontal placement; stored y/height remain editable.
 export function projectSemanticNode(nodes: DiagramNode[], node: DiagramNode): DiagramNode {
+  const size = contentSize(node);
+  node = { ...node, width: size.width, height: size.height };
   if (node.type === "activation") {
     const line = nodes.find((item) => item.id === node.lifelineId);
     return line ? { ...node, x: line.x + (line.width - node.width) / 2 } : node;
@@ -84,4 +87,51 @@ export function projectSemanticNode(nodes: DiagramNode[], node: DiagramNode): Di
     return { ...node, x: Math.min(start, end), width: Math.max(48, Math.abs(end - start)), meta: { ...node.meta, renderReverse: start > end, renderSelf: source.id === target.id } };
   }
   return node;
+}
+
+export function edgeLabelPosition(edge: import("./schema.js").DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }) {
+  let points = [source, ...(edge.waypoints ?? []), target];
+  if (!edge.waypoints?.length && edge.router === "orthogonal") {
+    const horizontal = [edge.sourceHandle, edge.targetHandle].some((side) => side === "left" || side === "right");
+    const x = (source.x + target.x) / 2, y = (source.y + target.y) / 2;
+    points = horizontal ? [source, { x, y: source.y }, { x, y: target.y }, target] : [source, { x: source.x, y }, { x: target.x, y }, target];
+  }
+  const lengths = points.slice(1).map((point, index) => Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y));
+  let remaining = lengths.reduce((sum, value) => sum + value, 0) / 2;
+  for (let index = 0; index < lengths.length; index++) {
+    const length = lengths[index]!;
+    if (!length) continue;
+    if (remaining > length) { remaining -= length; continue; }
+    const a = points[index]!, b = points[index + 1]!;
+    return { x: a.x + (b.x - a.x) * remaining / length, y: a.y + (b.y - a.y) * remaining / length - (edge.router === "curved" ? 21 : 6) };
+  }
+  return { x: source.x, y: source.y - 6 };
+}
+
+export function nodeConnectionBox(node: DiagramNode): Box {
+  if (node.type === "state" && node.kind !== "state") {
+    const radius = node.kind === "initial" ? 10 : 16;
+    return { x: node.width / 2 - radius, y: Math.min(24, node.height / 3) - radius, width: radius * 2, height: radius * 2 };
+  }
+  return { x: 0, y: 0, width: node.width, height: node.height };
+}
+
+export function edgeEndpoints(nodes: DiagramNode[], edge: import("./schema.js").DiagramEdge) {
+  const byId = nodeMap(nodes);
+  const source = byId.get(edge.source), target = byId.get(edge.target);
+  if (!source || !target) return null;
+  const connection = (node: DiagramNode) => {
+    const origin = absolutePosition(nodes, node.id);
+    const box = nodeConnectionBox(projectSemanticNode(nodes, node));
+    return { ...box, x: origin.x + box.x, y: origin.y + box.y };
+  };
+  const a = connection(source), b = connection(target);
+  const side = (from: Box, to: Box): import("./schema.js").HandleSide => {
+    const dx = to.x + to.width / 2 - from.x - from.width / 2;
+    const dy = to.y + to.height / 2 - from.y - from.height / 2;
+    return Math.abs(dx) > Math.abs(dy) ? dx > 0 ? "right" : "left" : dy > 0 ? "bottom" : "top";
+  };
+  const point = (box: Box, handle: import("./schema.js").HandleSide) => ({ x: box.x + (handle === "left" ? 0 : handle === "right" ? box.width : box.width / 2), y: box.y + (handle === "top" ? 0 : handle === "bottom" ? box.height : box.height / 2) });
+  const sourceHandle = edge.sourceHandle ?? side(a, b), targetHandle = edge.targetHandle ?? side(b, a);
+  return { source: point(a, sourceHandle), target: point(b, targetHandle), sourceHandle, targetHandle };
 }

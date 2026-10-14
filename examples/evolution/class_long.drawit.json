@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "documentId": "class_long",
+  "revision": 0,
+  "title": "用户与订单类图",
+  "canvas": {
+    "width": 1200,
+    "height": 740,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "用户与订单类图",
+      "id": "title",
+      "x": 40,
+      "y": 20,
+      "width": 1100,
+      "height": 48,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "class",
+      "name": "User",
+      "attributes": [
+        "+ id: string",
+        "+ name: string"
+      ],
+      "methods": [
+        "+ login(): boolean"
+      ],
+      "stereotype": "entity",
+      "id": "user",
+      "x": 80,
+      "y": 140,
+      "width": 240,
+      "height": 180
+    },
+    {
+      "type": "class",
+      "name": "Order",
+      "attributes": [
+        "+ id: string",
+        "+ total: number"
+      ],
+      "methods": [
+        "+ submit(): void"
+      ],
+      "stereotype": "",
+      "id": "order",
+      "x": 440,
+      "y": 140,
+      "width": 240,
+      "height": 180
+    },
+    {
+      "type": "class",
+      "name": "Admin",
+      "attributes": [
+        "+ role: string"
+      ],
+      "methods": [
+        "+ approve(order): void"
+      ],
+      "stereotype": "",
+      "id": "admin",
+      "x": 800,
+      "y": 140,
+      "width": 240,
+      "height": 180
+    }
+  ],
+  "edges": [
+    {
+      "id": "user_order",
+      "source": "user",
+      "target": "order",
+      "label": "关联 1:N",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "admin_user",
+      "source": "admin",
+      "target": "user",
+      "sourceHandle": "bottom",
+      "targetHandle": "bottom",
+      "label": "继承",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "waypoints": [
+        {
+          "x": 920,
+          "y": 460
+        },
+        {
+          "x": 200,
+          "y": 460
+        }
+      ]
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

@@ -9,7 +9,7 @@ import {
   type DiagramNode,
   type NodeType,
   documentSchema,
-  nodeSchema,
+  nodeSchema, nodeTypeSchema,
 } from "./schema.js";
 import { validateDocument } from "./validate.js";
 
@@ -39,6 +39,10 @@ const SIZES: Record<NodeType, { width: number; height: number }> = {
   lifeline: { width: 140, height: 360 },
   message: { width: 220, height: 36 },
   activation: { width: 20, height: 100 },
+  class: { width: 240, height: 180 }, entity: { width: 220, height: 160 },
+  relationship: { width: 180, height: 100 }, state: { width: 160, height: 72 },
+  swimlane: { width: 720, height: 220 }, axis: { width: 420, height: 100 },
+  tensor: { width: 200, height: 88 }, timeline: { width: 720, height: 200 },
 };
 
 const PLACEHOLDER_PNG =
@@ -106,7 +110,7 @@ function defaultsFor(type: string): Record<string, unknown> {
         y: 80,
         width: size.width,
         height: size.height,
-        root: { label: "root", children: [{ label: "L", children: [] }, { label: "R", children: [] }] },
+        root: { label: "root", children: [{ label: "L", children: [{ label: "叶子", children: [] }] }, { label: "R", children: [{ label: "叶子", children: [] }] }] },
       };
     case "graph":
       return {
@@ -130,6 +134,7 @@ export function materializeNode(input: Record<string, unknown>, fallbackId: stri
   if (typeof type !== "string") {
     throw new DrawitError("VALIDATION_ERROR", "Node type is required");
   }
+  if (!nodeTypeSchema.safeParse(type).success) throw new DrawitError("VALIDATION_ERROR", `Unsupported node type: ${type}. Read diagram_catalog for supported components.`);
   const defaults = defaultsFor(type as NodeType);
   const id = typeof input.id === "string" ? input.id : fallbackId;
   try {

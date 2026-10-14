@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "documentId": "relationship_long",
+  "revision": 0,
+  "title": "用户加入组织",
+  "canvas": {
+    "width": 1200,
+    "height": 740,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "用户加入组织",
+      "id": "title",
+      "x": 40,
+      "y": 20,
+      "width": 1100,
+      "height": 48,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "entity",
+      "name": "用户",
+      "attributes": [
+        "用户ID（主键）",
+        "姓名"
+      ],
+      "id": "left",
+      "x": 80,
+      "y": 160,
+      "width": 220,
+      "height": 160
+    },
+    {
+      "type": "relationship",
+      "name": "加入",
+      "id": "relation",
+      "x": 460,
+      "y": 190,
+      "width": 180,
+      "height": 100
+    },
+    {
+      "type": "entity",
+      "name": "组织",
+      "attributes": [
+        "ID（主键）",
+        "创建时间"
+      ],
+      "id": "right",
+      "x": 800,
+      "y": 160,
+      "width": 220,
+      "height": 160
+    },
+    {
+      "type": "entity",
+      "name": "审计记录",
+      "attributes": [
+        "记录ID（主键）",
+        "操作时间"
+      ],
+      "id": "audit",
+      "x": 800,
+      "y": 430,
+      "width": 220,
+      "height": 160
+    },
+    {
+      "type": "relationship",
+      "name": "产生",
+      "id": "records",
+      "x": 460,
+      "y": 440,
+      "width": 180,
+      "height": 100
+    }
+  ],
+  "edges": [
+    {
+      "id": "left_relation",
+      "source": "left",
+      "target": "relation",
+      "label": "N",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": false,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "relation_right",
+      "source": "relation",
+      "target": "right",
+      "label": "N",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": false,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "left_records",
+      "source": "left",
+      "target": "records",
+      "label": "1",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": false,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "records_audit",
+      "source": "records",
+      "target": "audit",
+      "label": "N",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": false,
+      "lineStyle": "solid"
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

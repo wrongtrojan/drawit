@@ -113,7 +113,9 @@ async function dispatchFile(home: string, body: Record<string, unknown>): Promis
       await controller.markSaved(path);
       return { type: "response", requestId, ok: true, document: result.document, revision: result.revision, operationId: result.operationId, warnings: result.warnings, bounds: laidOut.bounds, summary: result.summary };
     }
-    const operations = operationSchema.array().parse(body.operations ?? []);
+    const parsed = operationSchema.array().safeParse(body.operations ?? []);
+    if (!parsed.success) throw new DrawitError("VALIDATION_ERROR", parsed.error.message);
+    const operations = parsed.data;
     const request = { expectedRevision: Number(body.expectedRevision), operations, source: "mcp" as const };
     const result = body.type === "preview" ? await controller.preview(request) : await controller.apply(request);
     if (!result.ok) return { type: "response", requestId, ...result };

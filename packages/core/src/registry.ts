@@ -1,3 +1,4 @@
+import { componentGuidance, type ComponentGuidance } from "./componentGuidance.js";
 import { z } from "zod/v4";
 import { nodeSchema } from "./schema.js";
 import { materializeNode } from "./document.js";
@@ -6,7 +7,7 @@ import type { DiagramNode, FlowchartKind, NodeType } from "./schema.js";
 
 export type ComponentCategory = "basic" | "math" | "domain";
 
-export interface ComponentDefinition {
+export interface ComponentDefinition extends ComponentGuidance {
   id: string;
   type: NodeType;
   category: ComponentCategory;
@@ -28,11 +29,10 @@ function define(
 ): ComponentDefinition {
   const schema = nodeSchema.options.find((option) => option.shape.type.value === type)!;
   const propertySchema = z.toJSONSchema(schema, { io: "input" }) as Record<string, unknown>;
-  const required = (propertySchema.required as string[]).filter((key) => !["id", "type", "x", "y", "width", "height"].includes(key));
-  const referenceExamples: Record<string, unknown> = type === "message" ? { sourceId: "client", targetId: "server" } : type === "activation" ? { lifelineId: "server" } : {};
+  const referenceExamples: Record<string, unknown> = type === "message" ? { sourceId: "client", targetId: "server" } : type === "activation" ? { lifelineId: "server" } : type === "annotation" ? { targetId: "target" } : ["array", "stack", "queue"].includes(type) ? { highlightIndex: 0 } : {};
   const example = { ...materializeNode({ type, ...partial, ...referenceExamples }, "example") };
   return {
-    propertySchema, requiredFields: required, example,
+    ...componentGuidance[type], propertySchema, requiredFields: componentGuidance[type].semanticFields, example: Object.fromEntries(Object.entries(example).filter(([key]) => ["id", "type", ...componentGuidance[type].semanticFields].includes(key))),
     id,
     type,
     category,
@@ -69,6 +69,14 @@ export const componentRegistry: ComponentDefinition[] = [
   define("domain.array", "array", "domain", "数组", ["array", "数组"], { items: ["a0", "a1", "a2", "a3"] }),
   define("domain.stack", "stack", "domain", "栈", ["stack", "栈"], { items: ["top", "mid", "bottom"] }),
   define("domain.queue", "queue", "domain", "队列", ["queue", "队列"], { items: ["head", "a", "b", "tail"] }),
+  define("uml.class", "class", "domain", "类", ["class", "UML", "类图"], { name: "User", attributes: ["+ id: string"], methods: ["+ login(): void"], stereotype: "" }),
+  define("er.entity", "entity", "domain", "ER 实体", ["entity", "ER", "实体"], { name: "用户", attributes: ["id（主键）", "姓名"] }),
+  define("er.relationship", "relationship", "domain", "ER 联系", ["relationship", "ER", "联系"], { name: "拥有" }),
+  define("domain.state", "state", "domain", "状态", ["state", "状态机"], { kind: "state", text: "待处理" }),
+  define("domain.swimlane", "swimlane", "domain", "泳道", ["swimlane", "流程", "职责"], { title: "负责人", direction: "horizontal" }),
+  define("math.axis", "axis", "math", "数轴", ["axis", "数轴", "坐标系"], { title: "x", min: 0, max: 10, direction: "horizontal", ticks: [{ value: 0 }, { value: 5 }, { value: 10 }] }),
+  define("domain.tensor", "tensor", "domain", "张量", ["tensor", "AI", "形状"], { name: "x", shape: "[B, T, d]" }),
+  define("domain.timeline", "timeline", "domain", "里程碑", ["timeline", "时间线", "里程碑"], { title: "发布节奏", milestones: [{ date: "2026-01-01", label: "发现" }, { date: "2026-03-01", label: "发布" }] }),
   define("domain.tree", "tree", "domain", "树", ["tree", "树"], {}),
   define("domain.graph", "graph", "domain", "图", ["graph", "图"], {}),
   define("math.equation", "equation", "math", "公式", ["equation", "latex", "公式"], { latex: "E = mc^2" }),
@@ -98,9 +106,24 @@ export const stylePresets = {
 
 export type StylePresetName = keyof typeof stylePresets;
 
-export function componentCatalog() {
-  return componentRegistry.map(({ id, type, category, label, keywords, propertySchema, requiredFields, example }) => ({
-    id, type, category, label, scenarios: keywords, propertySchema, requiredFields, example,
-    defaultGeometry: { width: example.width, height: example.height },
-  }));
+export const plannedDiagramKinds = [
+  { type: "class", label: "类图" }, { type: "entity", label: "ER 实体" }, { type: "relationship", label: "ER 联系" }, { type: "state", label: "状态图" },
+  { type: "swimlane", label: "泳道图" }, { type: "axis", label: "数轴" }, { type: "tensor", label: "张量" }, { type: "timeline", label: "里程碑" },
+];
+export function unsupportedDiagramKinds() {
+  return plannedDiagramKinds.filter((kind) => !componentRegistry.some((item) => item.type === kind.type)).map((kind) => ({ ...kind, guidance: "还没有该类型，不要用匿名矩形冒充。" }));
+}
+export function componentCatalog(includeSchema = false) {
+  return componentRegistry.map(({ id, type, category, label, usage, semanticFields, compositionOrder, propertySchema, example, create }) => {
+    const prerequisites = type === "message" || type === "activation" ? [
+      { type: "lifeline", id: "client", text: "客户端", x: 80, y: 80 },
+      { type: "lifeline", id: "server", text: "服务端", x: 360, y: 80 },
+    ] : type === "annotation" ? [{ type: "rectangle", id: "target", text: "目标", x: 360, y: 80 }] : [];
+    const nodeExample = type === "message" ? { ...example, y: 160 } : type === "activation" ? { ...example, y: 196 } : example;
+    const geometry = create();
+    return { id, type, category, label, usage, semanticFields, requiredFields: semanticFields, compositionOrder, example: nodeExample,
+      exampleOperations: [{ op: "addNodes", nodes: [...prerequisites, nodeExample] }],
+      ...(includeSchema ? { propertySchema, defaultGeometry: { width: geometry.width, height: geometry.height } } : {}),
+    };
+  });
 }

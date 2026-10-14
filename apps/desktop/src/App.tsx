@@ -1,4 +1,4 @@
-import { componentById, parseDocument, type ComponentDefinition, type DiagramDocument, type DiagramOperation, type Issue, type NodePatch, type OperationRecord } from "@drawit/core";
+import { isContainerNode, componentById, parseDocument, type ComponentDefinition, type DiagramDocument, type DiagramOperation, type Issue, type NodePatch, type OperationRecord } from "@drawit/core";
 import type { Connection, ReactFlowInstance } from "@xyflow/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "./Canvas.js";
@@ -287,7 +287,7 @@ export function App() {
           void apply([{ op: "group", nodeIds }]);
         }}
         onUngroup={() => {
-          const container = document.nodes.find((node) => selection.includes(node.id) && node.type === "container");
+          const container = document.nodes.find((node) => selection.includes(node.id) && isContainerNode(node));
           if (!container) return setMessage("请选择一个容器");
           void apply([{ op: "ungroup", containerId: container.id }]);
         }}

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "documentId": "axis_long",
+  "revision": 0,
+  "title": "二维坐标与区间",
+  "canvas": {
+    "width": 1200,
+    "height": 740,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "二维坐标与区间",
+      "id": "title",
+      "x": 40,
+      "y": 20,
+      "width": 1100,
+      "height": 48,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "axis",
+      "title": "x ∈ [-2, 2]",
+      "direction": "horizontal",
+      "min": -2,
+      "max": 2,
+      "ticks": [
+        {
+          "value": -2
+        },
+        {
+          "value": -1
+        },
+        {
+          "value": 0
+        },
+        {
+          "value": 1
+        },
+        {
+          "value": 2
+        }
+      ],
+      "id": "x",
+      "x": 240,
+      "y": 450,
+      "width": 520,
+      "height": 100
+    },
+    {
+      "type": "axis",
+      "title": "y",
+      "direction": "vertical",
+      "min": 0,
+      "max": 3,
+      "ticks": [
+        {
+          "value": 0
+        },
+        {
+          "value": 1
+        },
+        {
+          "value": 2
+        },
+        {
+          "value": 3
+        }
+      ],
+      "id": "y",
+      "x": 436,
+      "y": 136,
+      "width": 140,
+      "height": 400
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

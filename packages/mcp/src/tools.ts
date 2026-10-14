@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
-import { componentCatalog, operationSchema } from "@drawit/core";
+import { componentCatalog, unsupportedDiagramKinds, nodeInputSchema, operationSchema } from "@drawit/core";
 import { compactResult, invoke } from "./invoke.js";
 import type { SessionResponse } from "@drawit/session/protocol";
 
@@ -24,9 +24,9 @@ export const SERVER_INSTRUCTIONS = "Read diagram_get or diagram_get_view before 
 
 export function registerDrawitTools(server: McpServer): void {
   server.registerTool("diagram_catalog", {
-    description: "Discover semantic node types, scenarios, default geometry, required fields, property schemas and a minimal addNodes example from the shared registry. Message and activation reference existing lifeline ids; table merge row 0 is the header. Does not modify anything.",
-    inputSchema: z.object({}),
-  }, async () => text({ ok: true, components: componentCatalog() }));
+    description: "Choose semantic components using human-readable usage, short semantic fields, directly submittable exampleOperations, and composition order from the shared registry. Lists unsupported diagram kinds; never impersonate them with anonymous rectangles. Detailed schemas are opt-in. Message and activation reference existing lifeline ids; table merge row 0 is the header. Does not modify anything.",
+    inputSchema: z.object({ includeSchema: z.boolean().optional().describe("Include detailed field schemas and default geometry; default false keeps usage guidance compact.") }),
+  }, async ({ includeSchema }) => text({ ok: true, components: componentCatalog(includeSchema), unsupported: unsupportedDiagramKinds() }));
   server.registerTool("diagram_save", {
     description: 'Save the active diagram without changing geometry or revision. dirty becomes false so you can create or switch documents. Example: {}. Failure leaves content unchanged.',
     inputSchema: z.object({ documentId: documentId.optional() }),
@@ -91,7 +91,7 @@ export function registerDrawitTools(server: McpServer): void {
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,
-        nodes: z.array(z.record(z.string(), z.unknown())).min(1).max(200),
+        nodes: z.array(nodeInputSchema).min(1).max(200),
       }),
     },
     async ({ documentId: id, expectedRevision: revision, nodes }) => text(compactResult(await invoke({ type: "apply", documentId: id, expectedRevision: revision, source: "mcp", operations: [{ op: "addNodes", nodes }] }))),

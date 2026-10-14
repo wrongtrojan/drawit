@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "documentId": "entity_short",
+  "revision": 0,
+  "title": "用户与订单实体",
+  "canvas": {
+    "width": 1200,
+    "height": 740,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "用户与订单实体",
+      "id": "title",
+      "x": 40,
+      "y": 20,
+      "width": 1100,
+      "height": 48,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "entity",
+      "name": "用户",
+      "attributes": [
+        "用户ID（主键）",
+        "姓名"
+      ],
+      "id": "left",
+      "x": 80,
+      "y": 160,
+      "width": 220,
+      "height": 160
+    },
+    {
+      "type": "relationship",
+      "name": "拥有",
+      "id": "relation",
+      "x": 460,
+      "y": 190,
+      "width": 180,
+      "height": 100
+    },
+    {
+      "type": "entity",
+      "name": "订单",
+      "attributes": [
+        "ID（主键）",
+        "名称"
+      ],
+      "id": "right",
+      "x": 800,
+      "y": 160,
+      "width": 220,
+      "height": 160
+    }
+  ],
+  "edges": [
+    {
+      "id": "left_relation",
+      "source": "left",
+      "target": "relation",
+      "label": "1",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": false,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "relation_right",
+      "source": "relation",
+      "target": "right",
+      "label": "N",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": false,
+      "lineStyle": "solid"
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

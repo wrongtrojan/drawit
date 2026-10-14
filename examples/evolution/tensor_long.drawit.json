@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "documentId": "tensor_long",
+  "revision": 0,
+  "title": "注意力的张量形状",
+  "canvas": {
+    "width": 1200,
+    "height": 740,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "注意力的张量形状",
+      "id": "title",
+      "x": 40,
+      "y": 20,
+      "width": 1100,
+      "height": 48,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "tensor",
+      "name": "x",
+      "shape": "[B, T, d]",
+      "id": "x",
+      "x": 80,
+      "y": 160,
+      "width": 200,
+      "height": 88
+    },
+    {
+      "type": "tensor",
+      "name": "Q",
+      "shape": "[B, H, T, d_k]",
+      "id": "q",
+      "x": 440,
+      "y": 160,
+      "width": 200,
+      "height": 88
+    },
+    {
+      "type": "tensor",
+      "name": "Attention",
+      "shape": "[B, H, T, T]",
+      "id": "attention",
+      "x": 800,
+      "y": 160,
+      "width": 200,
+      "height": 88
+    },
+    {
+      "type": "tensor",
+      "name": "输出",
+      "shape": "[B, T, d]",
+      "id": "output",
+      "x": 800,
+      "y": 430,
+      "width": 200,
+      "height": 88
+    }
+  ],
+  "edges": [
+    {
+      "id": "x_q",
+      "source": "x",
+      "target": "q",
+      "label": "线性投影",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "q_attention",
+      "source": "q",
+      "target": "attention",
+      "label": "计算注意力",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "attention_output",
+      "source": "attention",
+      "target": "output",
+      "label": "合并多头",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

@@ -1,4 +1,4 @@
-import { absolutePosition, projectSemanticNode, createId, type DiagramDocument, type DiagramEdge, type DiagramNode, type DiagramOperation } from "@drawit/core";
+import { absolutePosition, projectSemanticNode, isContainerNode, edgeEndpoints, createId, type DiagramDocument, type DiagramEdge, type DiagramNode, type DiagramOperation } from "@drawit/core";
 import type { Edge, Node } from "@xyflow/react";
 
 export function orderNodes(nodes: DiagramNode[]): DiagramNode[] {
@@ -27,7 +27,7 @@ export function toFlowNodes(document: DiagramDocument, selection: string[]): Nod
     width: node.width,
     height: node.height,
     parentId: node.parentId,
-    zIndex: (node.zIndex ?? 0) * 10 + (node.type === "container" ? 0 : 5),
+    zIndex: (node.zIndex ?? 0) * 10 + (isContainerNode(node) ? 0 : 5),
     selected: selection.includes(node.id),
     data: { diagramNode: node },
     style: { width: node.width, height: node.height },
@@ -36,21 +36,12 @@ export function toFlowNodes(document: DiagramDocument, selection: string[]): Nod
 
 export function toFlowEdges(document: DiagramDocument, selection: string[]): Edge[] {
   const annotations: DiagramEdge[] = document.nodes.flatMap((node) => node.type === "annotation" && node.targetId ? [{ id: `annotation_${node.id}`, source: node.id, target: node.targetId, label: "", router: "straight", arrowStart: false, arrowEnd: true, lineStyle: "dashed" }] : []);
-  const handle = (id: string, otherId: string) => {
-    const node = document.nodes.find((item) => item.id === id)!;
-    const other = document.nodes.find((item) => item.id === otherId)!;
-    const origin = absolutePosition(document.nodes, id);
-    const otherOrigin = absolutePosition(document.nodes, otherId);
-    const dx = otherOrigin.x + other.width / 2 - origin.x - node.width / 2;
-    const dy = otherOrigin.y + other.height / 2 - origin.y - node.height / 2;
-    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "bottom" : "top";
-  };
   return [...document.edges, ...annotations].map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    sourceHandle: edge.sourceHandle ?? handle(edge.source, edge.target),
-    targetHandle: edge.targetHandle ?? handle(edge.target, edge.source),
+    sourceHandle: edgeEndpoints(document.nodes, edge)?.sourceHandle,
+    targetHandle: edgeEndpoints(document.nodes, edge)?.targetHandle,
     label: edge.label || undefined,
     selected: selection.includes(edge.id),
     type: "drawit",
@@ -60,7 +51,7 @@ export function toFlowEdges(document: DiagramDocument, selection: string[]): Edg
     markerEnd: edge.arrowEnd ? { type: "arrowclosed" as never, color: edge.color ?? "#334155" } : undefined,
     markerStart: edge.arrowStart ? { type: "arrowclosed" as never, color: edge.color ?? "#334155" } : undefined,
     style: { stroke: edge.color ?? "#334155", strokeWidth: edge.width ?? 1.5, strokeDasharray: edge.lineStyle === "dashed" ? "6 4" : edge.lineStyle === "dotted" ? "1.5 3" : undefined },
-    data: { diagramEdge: { ...edge, sourceHandle: edge.sourceHandle ?? handle(edge.source, edge.target), targetHandle: edge.targetHandle ?? handle(edge.target, edge.source) } },
+    data: { diagramEdge: { ...edge, sourceHandle: edgeEndpoints(document.nodes, edge)?.sourceHandle, targetHandle: edgeEndpoints(document.nodes, edge)?.targetHandle } },
   }));
 }
 

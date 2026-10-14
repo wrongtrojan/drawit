@@ -5,10 +5,9 @@ import { drawitHome } from "./home.js";
 const line = (id: string, x: number) => materializeNode({ type: "lifeline", id, x, y: 40 }, id);
 describe("semantic components and explicit arrangement", () => {
   it("catalog examples materialize and survive JSON round trips with semantic fields", () => {
-    for (const component of componentCatalog()) {
+    for (const component of componentCatalog(true)) {
       const document = createDocument("目录");
-      document.nodes = [materializeNode(component.example, "example")];
-      if (component.type === "message" || component.type === "activation") document.nodes.push(line("client", 40), line("server", 300));
+      document.nodes = component.exampleOperations[0]!.nodes.map((node) => materializeNode(node, String(node.id)));
       expect(parseDocument(JSON.parse(JSON.stringify(document))).nodes[0]).toEqual(document.nodes[0]);
       expect(component.propertySchema).toHaveProperty("properties");
     }

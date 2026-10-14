@@ -23,3 +23,13 @@ describe("layout", () => {
     expect(result.bounds.width).toBeGreaterThan(0);
   });
 });
+
+it("keeps pinned swimlanes intact and places children past the header", async () => {
+  const { materializeNode } = await import("@drawit/core");
+  const document = createDocument("泳道布局");
+  document.nodes = [materializeNode({ type: "swimlane", id: "lane", pinned: true, x: 100, y: 100 }, "lane"), materializeNode({ type: "flowchart", id: "step", parentId: "lane", x: 80, y: 60 }, "step")];
+  const layout = await layoutDocument(document, { direction: "LR", nodeSpacing: 48, rankSpacing: 72 });
+  expect(layout.updates.some((update) => update.id === "lane")).toBe(false);
+  const step = layout.updates.find((update) => update.id === "step");
+  expect(step?.patch.x).toBeGreaterThanOrEqual(72);
+});

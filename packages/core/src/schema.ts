@@ -189,6 +189,17 @@ const messageNodeSchema = z.object({
 });
 const activationNodeSchema = z.object({ type: z.literal("activation"), lifelineId: idSchema, ...baseFields });
 
+export const axisTickSchema = z.object({ value: z.number().finite(), label: z.string().optional() });
+export const milestoneSchema = z.object({ date: z.string().min(1), label: z.string() });
+const classNodeSchema = z.object({ type: z.literal("class"), name: z.string().default("Class"), attributes: z.array(z.string()).default([]), methods: z.array(z.string()).default([]), stereotype: z.string().default(""), ...baseFields });
+const entityNodeSchema = z.object({ type: z.literal("entity"), name: z.string().default("Entity"), attributes: z.array(z.string()).default([]), ...baseFields });
+const relationshipNodeSchema = z.object({ type: z.literal("relationship"), name: z.string().default("联系"), ...baseFields });
+const stateNodeSchema = z.object({ type: z.literal("state"), kind: z.enum(["initial", "state", "final"]).default("state"), text: z.string().default("状态"), ...baseFields });
+const swimlaneNodeSchema = z.object({ type: z.literal("swimlane"), title: z.string().default("泳道"), direction: z.enum(["horizontal", "vertical"]).default("horizontal"), ...baseFields });
+const axisNodeSchema = z.object({ type: z.literal("axis"), title: z.string().default("数轴"), direction: z.enum(["horizontal", "vertical"]).default("horizontal"), min: z.number().finite().default(0), max: z.number().finite().default(10), ticks: z.array(axisTickSchema).default([{ value: 0 }, { value: 5 }, { value: 10 }]), ...baseFields });
+const tensorNodeSchema = z.object({ type: z.literal("tensor"), name: z.string().default("x"), shape: z.string().default("[B, T, d]"), ...baseFields });
+const timelineNodeSchema = z.object({ type: z.literal("timeline"), title: z.string().default("里程碑"), milestones: z.array(milestoneSchema).default([{ date: "2026-01-01", label: "开始" }, { date: "2026-03-01", label: "发布" }]), ...baseFields });
+
 export const nodeSchema = z.discriminatedUnion("type", [
   rectangleNodeSchema,
   roundedRectangleNodeSchema,
@@ -212,9 +223,12 @@ export const nodeSchema = z.discriminatedUnion("type", [
   treeNodeSchema,
   graphNodeSchema,
   tableNodeSchema, lifelineNodeSchema, messageNodeSchema, activationNodeSchema,
+  classNodeSchema, entityNodeSchema, relationshipNodeSchema, stateNodeSchema, swimlaneNodeSchema, axisNodeSchema, tensorNodeSchema, timelineNodeSchema,
 ]);
 export type DiagramNode = z.infer<typeof nodeSchema>;
 export type NodeType = DiagramNode["type"];
+export const nodeTypeSchema = z.enum(nodeSchema.options.map((option) => option.shape.type.value));
+export const isContainerNode = (node: DiagramNode): node is Extract<DiagramNode, { type: "container" | "swimlane" }> => node.type === "container" || node.type === "swimlane";
 
 export const edgeRouterSchema = z.enum(["straight", "orthogonal", "curved", "bezier"]);
 export type EdgeRouter = z.infer<typeof edgeRouterSchema>;
@@ -314,7 +328,7 @@ export const NODE_FIELD_KEYS = [
   "vertices",
   "links",
   "directed",
-  "root", "headers", "merges", "sourceId", "messageKind", "lifelineId",
+  "root", "headers", "merges", "sourceId", "messageKind", "lifelineId", "name", "attributes", "methods", "stereotype", "direction", "min", "max", "ticks", "shape", "milestones",
 ] as const;
 
 export const EDGE_FIELD_KEYS = [

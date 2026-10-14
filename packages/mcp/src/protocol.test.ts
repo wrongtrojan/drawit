@@ -47,7 +47,7 @@ async function verify(client: ReturnType<typeof wire>, version: string, modern =
   const catalog = await client.request("tools/call", { name: "diagram_catalog", arguments: {}, ...meta });
   expect(catalog.error).toBeUndefined();
   const payload = JSON.parse(catalog.result.content.find((item: any) => item.type === "text").text);
-  expect(payload.components.some((component: any) => component.type === "table" && component.propertySchema)).toBe(true);
+  expect(payload.components.some((component: any) => component.type === "table" && component.usage && component.semanticFields.includes("cells"))).toBe(true);
 }
 
 describe("stdio protocol compatibility", () => {

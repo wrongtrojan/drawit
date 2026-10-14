@@ -85,3 +85,6 @@ legend { font-weight: 600; color: #475569; padding-right: 8px; }
 .external-warning { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #fcd34d; border-radius: 8px; background: #fffbeb; box-shadow: 0 4px 16px #0f172a15; }
 
 .merge-entry { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12px; }
+
+.semantic-entry { padding: 8px 0; border-bottom: 1px solid #d6dde6; }
+.tree-fields { padding-left: 8px; border-left: 1px solid #cbd5e1; margin: 8px 0; }

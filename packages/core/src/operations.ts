@@ -15,6 +15,7 @@ import {
   themeSchema,
   treeValueSchema,
   tableMergeSchema,
+  axisTickSchema, milestoneSchema, isContainerNode,
   type DiagramDocument,
   type DiagramEdge,
   type DiagramNode,
@@ -52,7 +53,7 @@ export const nodePatchSchema = z
     style: nodeStyleSchema.optional(),
     text: z.string().optional(),
     title: z.string().optional(),
-    kind: z.enum(["terminator", "process", "decision", "io"]).optional(),
+    kind: z.enum(["terminator", "process", "decision", "io", "initial", "state", "final"]).optional(),
     items: z.array(z.string()).optional(),
     highlightIndex: z.number().int().nonnegative().nullable().optional(),
     latex: z.string().max(4000).optional(),
@@ -79,17 +80,17 @@ export const nodePatchSchema = z
     sourceId: idSchema.optional(),
     lifelineId: idSchema.optional(),
     messageKind: z.enum(["sync", "async", "return"]).optional(),
+    name: z.string().optional(), attributes: z.array(z.string()).optional(), methods: z.array(z.string()).optional(), stereotype: z.string().optional(),
+    direction: z.enum(["horizontal", "vertical"]).optional(), min: z.number().finite().optional(), max: z.number().finite().optional(),
+    ticks: z.array(axisTickSchema).optional(), shape: z.string().optional(), milestones: z.array(milestoneSchema).optional(),
     meta: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 export type NodePatch = z.infer<typeof nodePatchSchema>;
 
-export const nodeInputSchema = nodePatchSchema
-  .extend({
-    id: idSchema.optional(),
-    type: z.string().min(1),
-  })
-  .strict();
+// Expose each registered type and its semantic fields to MCP clients. Geometry
+// is optional on creation; type-specific required fields remain required.
+export const nodeInputSchema = z.union(nodeSchema.options.map((option) => z.object({ ...option.shape, id: idSchema.optional(), x: z.number().finite().optional(), y: z.number().finite().optional(), width: z.number().positive().max(8000).optional(), height: z.number().positive().max(8000).optional() }).strict()));
 
 export const edgeInputSchema = z
   .object({
@@ -144,7 +145,8 @@ export const operationSchema = z.discriminatedUnion("op", [
   }),
   z.object({ op: z.literal("ungroup"), containerId: idSchema }),
 ]);
-export type DiagramOperation = z.infer<typeof operationSchema>;
+type ParsedDiagramOperation = z.infer<typeof operationSchema>;
+export type DiagramOperation = Exclude<ParsedDiagramOperation, { op: "addNodes" }> | { op: "addNodes"; nodes: z.input<typeof nodeInputSchema>[] };
 
 function requireNode(document: DiagramDocument, id: string): DiagramNode {
   const node = document.nodes.find((item) => item.id === id);
@@ -158,7 +160,7 @@ function assertIdAvailable(document: DiagramDocument, id: string): void {
   }
 }
 
-function addNodes(document: DiagramDocument, nodes: z.infer<typeof nodeInputSchema>[], summary: ChangeSummary): void {
+function addNodes(document: DiagramDocument, nodes: z.input<typeof nodeInputSchema>[], summary: ChangeSummary): void {
   for (const input of nodes) {
     const id = input.id ?? createId("n");
     assertIdAvailable(document, id);
@@ -181,6 +183,8 @@ function updateNodes(
     if (index < 0) throw new DrawitError("NOT_FOUND", `Node not found: ${update.id}`);
     const current = document.nodes[index];
     if (!current) throw new DrawitError("NOT_FOUND", `Node not found: ${update.id}`);
+    const fields = nodeSchema.options.find((option) => option.shape.type.value === current.type)!.shape;
+    for (const key of Object.keys(update.patch)) if (!(key in fields)) throw new DrawitError("VALIDATION_ERROR", `Field ${key} is not supported by ${current.type}`);
     const next: Record<string, unknown> = { ...current };
     const parentChanges = update.patch.parentId !== undefined && (update.patch.parentId ?? undefined) !== current.parentId;
     if (parentChanges && update.patch.x === undefined && update.patch.y === undefined) {
@@ -349,7 +353,7 @@ function groupNodes(
 
 function ungroup(document: DiagramDocument, containerId: string, summary: ChangeSummary): void {
   const container = requireNode(document, containerId);
-  if (container.type !== "container") {
+  if (!isContainerNode(container)) {
     throw new DrawitError("VALIDATION_ERROR", `Node ${containerId} is not a container`);
   }
   const children = document.nodes.filter((node) => node.parentId === containerId);

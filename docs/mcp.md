@@ -54,3 +54,11 @@ pnpm dev
 `REVISION_CONFLICT` 和 `VALIDATION_ERROR` 不改变文档。重新读取版本后再试。`diagram_open_editor` 不启动窗口；编辑器未运行时返回 `EDITOR_NOT_RUNNING`，此时工具直接读写工程文件。编辑器打开时，工具只转发到当前会话。会话暂时连不上时，拒绝本次操作，并在重新连接后重试。日志写在 stderr。
 
 stdio 接受 `initialize` 协议 `2024-11-05`、`2025-03-26`、`2025-06-18`，以及 `2026-07-28` 信封。协议变更和打包形态见 [maintenance.md](maintenance.md)。
+
+## 选择组件
+
+先读 `diagram_catalog`：每项包含 usage、semanticFields、compositionOrder、最小 example 和可直接用于 `diagram_apply_operations` 的 exampleOperations。默认省略详细几何与样式 schema；需要时传 `{ "includeSchema": true }`。目录数据来自同一个注册表，unsupported 列出尚未实现的规划图种。不要用匿名矩形冒充不支持的类型。
+
+类、ER 实体、ER 联系、状态、泳道、数轴、张量、里程碑分别使用 class、entity、relationship、state、swimlane、axis、tensor、timeline。数轴的 ticks 是 `{ value, label? }` 数组；里程碑使用 milestones 的 `{ date, label }` 数组，日期为有效 YYYY-MM-DD。有 parentId 的节点坐标相对父容器或泳道。时序消息和激活条示例包含必要的生命线。
+
+创建输入按类型校验，未知类型、错误字段或坏掉的语义关系拒绝整批。短字段列表保留有默认值的关键语义字段。需要实际绘制尺寸时查看 diagram_get 的 view.nodes.renderedWidth/renderedHeight；不要根据存储的最小宽高推断长文本节点的边界。

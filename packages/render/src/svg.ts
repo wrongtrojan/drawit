@@ -1,5 +1,6 @@
 import {
-  absoluteBox,
+  absoluteBox, edgeLabelPosition, edgeEndpoints,
+  isContainerNode, gridLayout, treeLayout, graphLayout, labelHeight,
   projectSemanticNode,
   absolutePosition,
   contentBounds,
@@ -70,8 +71,14 @@ function localShape(node: DiagramNode, fill: string, stroke: string, strokeWidth
     }
     case "activation":
       return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" fill="${fill}" stroke="${stroke}"/>`;
-    case "table":
+    case "table": case "matrix": case "vector": case "array": case "stack": case "queue": case "tree": case "graph": case "axis": case "timeline":
       return "";
+    case "relationship":
+      return localShape({ ...node, type: "diamond", text: node.name }, fill, stroke, strokeWidth);
+    case "state":
+      return node.kind === "state" ? localShape({ ...node, type: "roundedRectangle" }, fill, stroke, strokeWidth) : "";
+    case "swimlane":
+      return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" fill="${fill}" stroke="${stroke}"/>`;
     case "roundedRectangle":
       return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="${node.style?.cornerRadius ?? 12}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
     case "ellipse":
@@ -104,133 +111,129 @@ function localShape(node: DiagramNode, fill: string, stroke: string, strokeWidth
   }
 }
 
-function matrixBody(node: Extract<DiagramNode, { type: "matrix" }>, textColor: string, family: string): string {
-  const rows = node.cells.length;
-  const cols = node.cells[0]?.length ?? 1;
-  const pad = 18;
-  const innerW = Math.max(1, node.width - pad * 2);
-  const innerH = Math.max(1, node.height - 16);
-  const cellW = innerW / cols;
-  const cellH = innerH / rows;
-  const highlight = new Set(node.highlightCells.map(([row, col]) => `${row}:${col}`));
+function gridBody(node: Extract<DiagramNode, { type: "matrix" | "table" | "vector" | "array" | "stack" | "queue" }>, fill: string, stroke: string, textColor: string, family: string): string {
+  const grid = gridLayout(node);
   const parts: string[] = [];
-  node.cells.forEach((row, rowIndex) => {
-    row.forEach((cell, colIndex) => {
-      const x = pad + colIndex * cellW;
-      const y = 8 + rowIndex * cellH;
-      const hot = highlight.has(`${rowIndex}:${colIndex}`) || node.highlightRows.includes(rowIndex) || node.highlightCols.includes(colIndex);
-      if (hot) parts.push(`<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="#fde68a"/>`);
-      parts.push(textBlock(cell, x, y, cellW, cellH, Math.min(16, fontSize(node)), textColor, family));
+  let y = grid.padY;
+  grid.rows.forEach((row, r) => {
+    let x = grid.padX;
+    row.forEach((value, c) => {
+      const cellWidth = grid.widths[c]!;
+      const merge = node.type === "table" ? node.merges.find((item) => r >= item.row && r < item.row + item.rowSpan && c >= item.column && c < item.column + item.columnSpan) : undefined;
+      if (!merge || (merge.row === r && merge.column === c)) {
+        const width = grid.widths.slice(c, c + (merge?.columnSpan ?? 1)).reduce((sum, value) => sum + value, 0);
+        const height = grid.heights.slice(r, r + (merge?.rowSpan ?? 1)).reduce((sum, value) => sum + value, 0);
+        const hot = node.type === "matrix" ? node.highlightRows.includes(r) || node.highlightCols.includes(c) || node.highlightCells.some(([a, b]) => a === r && b === c) : "highlightIndex" in node && node.highlightIndex === (node.type === "stack" ? r : c);
+        const cellFill = hot ? "#fde68a" : node.type === "table" && r === 0 ? "#e2e8f0" : fill;
+        if (node.type !== "matrix" || hot) parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${cellFill}" ${node.type !== "matrix" ? `stroke="${stroke}"` : ""}/>`);
+        parts.push(textBlock(value, x + 8, y + 8, width - 16, height - 16, fontSize(node), textColor, family));
+      }
+      x += cellWidth;
     });
+    y += grid.heights[r]!;
   });
-  const bracket = node.bracket === "round" ? "(" : node.bracket === "curly" ? "{" : node.bracket === "pipe" ? "|" : "[";
-  const close = node.bracket === "round" ? ")" : node.bracket === "curly" ? "}" : node.bracket === "pipe" ? "|" : "]";
-  if (node.bracket !== "none") {
-    parts.push(`<text x="6" y="${node.height / 2}" font-size="28" fill="${textColor}">${bracket}</text>`);
-    parts.push(`<text x="${node.width - 16}" y="${node.height / 2}" font-size="28" fill="${textColor}">${close}</text>`);
+  if (node.type === "matrix" && node.bracket !== "none") {
+    const pair = node.bracket === "round" ? ["(", ")"] : node.bracket === "curly" ? ["{", "}"] : node.bracket === "pipe" ? ["|", "|"] : ["[", "]"];
+    pair.forEach((bracket, index) => parts.push(`<text x="${index ? node.width - 16 : 4}" y="${node.height / 2 + 10}" font-size="28" fill="${textColor}">${bracket}</text>`));
   }
   return parts.join("");
 }
 
-function cellsBody(labels: string[], vertical: boolean, width: number, height: number, highlight: number | undefined, textColor: string, family: string): string {
-  const count = Math.max(1, labels.length);
-  const parts: string[] = [];
-  for (let index = 0; index < count; index += 1) {
-    const x = vertical ? 8 : (width / count) * index;
-    const y = vertical ? (height / count) * index : 8;
-    const cellW = vertical ? width - 16 : width / count;
-    const cellH = vertical ? height / count : height - 16;
-    const hot = highlight === index;
-    parts.push(`<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="${hot ? "#fde68a" : "transparent"}" stroke="#94a3b8"/>`);
-    parts.push(textBlock(labels[index] ?? "", x, y, cellW, cellH, 14, textColor, family));
-  }
-  return parts.join("");
+function vertexBody(vertex: { id: string; label: string; x: number; y: number; width: number; height: number }, fill: string, stroke: string, textColor: string, family: string, size: number): string {
+  return `<g data-vertex-id="${escapeXml(vertex.id)}"><rect x="${vertex.x}" y="${vertex.y}" width="${vertex.width}" height="${vertex.height}" rx="8" fill="${fill}" stroke="${stroke}"/>${textBlock(vertex.label, vertex.x + 8, vertex.y + 8, vertex.width - 16, vertex.height - 16, size, textColor, family)}</g>`;
 }
-
-function treeBody(root: TreeValue, width: number, height: number, textColor: string, family: string): string {
-  const placed: Array<{ label: string; x: number; y: number; parent?: { x: number; y: number } }> = [];
-  let cursor = 0;
-  const walk = (node: TreeValue, depth: number, parent?: { x: number; y: number }): { x: number } => {
-    if (node.children.length === 0) {
-      const x = cursor;
-      cursor += 1;
-      placed.push({ label: node.label, x, y: depth, parent });
-      return { x };
-    }
-    const children = node.children.map((child) => walk(child, depth + 1));
-    const x = ((children[0]?.x ?? 0) + (children[children.length - 1]?.x ?? 0)) / 2;
-    placed.push({ label: node.label, x, y: depth, parent });
-    const self = { x, y: depth };
-    for (const child of placed) {
-      if (node.children.some((item) => item.label === child.label) && child.parent === undefined && child.y === depth + 1) child.parent = self;
-    }
-    return { x };
+function treeBody(node: Extract<DiagramNode, { type: "tree" }>, fill: string, stroke: string, textColor: string, family: string): string {
+  const layout = treeLayout(node);
+  const links = layout.vertices.flatMap((vertex) => {
+    const parent = layout.vertices.find((item) => item.id === vertex.parentId);
+    return parent ? [`<line data-parent="${parent.id}" data-child="${vertex.id}" x1="${parent.x + parent.width / 2}" y1="${parent.y + parent.height}" x2="${vertex.x + vertex.width / 2}" y2="${vertex.y}" stroke="${stroke}"/>`] : [];
+  });
+  return links.join("") + layout.vertices.map((vertex) => vertexBody(vertex, fill, stroke, textColor, family, fontSize(node))).join("");
+}
+function graphBody(node: Extract<DiagramNode, { type: "graph" }>, fill: string, stroke: string, textColor: string, family: string): string {
+  const { vertices } = graphLayout(node);
+  const point = (a: typeof vertices[number], b: typeof vertices[number]) => {
+    const dx = b.x + b.width / 2 - a.x - a.width / 2;
+    const dy = b.y + b.height / 2 - a.y - a.height / 2;
+    const t = Math.min(dx ? a.width / 2 / Math.abs(dx) : Infinity, dy ? a.height / 2 / Math.abs(dy) : Infinity);
+    return { x: a.x + a.width / 2 + dx * t, y: a.y + a.height / 2 + dy * t };
   };
-  walk(root, 0);
-  const maxDepth = Math.max(1, ...placed.map((item) => item.y));
-  const maxX = Math.max(1, cursor - 1);
-  const parts: string[] = [];
-  const coords = placed.map((item) => ({
-    ...item,
-    cx: 28 + (item.x / maxX) * Math.max(1, width - 56),
-    cy: 24 + (item.y / maxDepth) * Math.max(1, height - 48),
-  }));
-  for (const item of coords) {
-    if (!item.parent) continue;
-    const parent = coords.find((candidate) => candidate.x === item.parent?.x && candidate.y === item.parent?.y);
-    if (parent) parts.push(`<line x1="${parent.cx}" y1="${parent.cy}" x2="${item.cx}" y2="${item.cy}" stroke="#64748b"/>`);
-  }
-  for (const item of coords) {
-    parts.push(`<circle cx="${item.cx}" cy="${item.cy}" r="14" fill="#ffffff" stroke="#1f2937"/>`);
-    parts.push(`<text x="${item.cx}" y="${item.cy + 4}" text-anchor="middle" font-size="11" font-family="${escapeXml(family)}" fill="${textColor}">${escapeXml(item.label)}</text>`);
-  }
-  return parts.join("");
-}
-
-function graphBody(node: Extract<DiagramNode, { type: "graph" }>, textColor: string, family: string): string {
-  const radius = Math.max(16, Math.min(node.width, node.height) / 2 - 28);
-  const centers = new Map<string, { x: number; y: number }>();
-  node.vertices.forEach((vertex, index) => {
-    const angle = -Math.PI / 2 + (index / node.vertices.length) * Math.PI * 2;
-    centers.set(vertex.id, { x: node.width / 2 + Math.cos(angle) * radius, y: node.height / 2 + Math.sin(angle) * radius });
+  const links = node.links.map((link, index) => {
+    const source = vertices.find((value) => value.id === link.source);
+    const target = vertices.find((value) => value.id === link.target);
+    if (!source || !target) return "";
+    const self = source.id === target.id;
+    const start = self ? { x: source.x + source.width, y: source.y + 8 } : point(source, target);
+    const end = self ? { x: source.x + source.width, y: source.y + source.height - 8 } : point(target, source);
+    const marker = `graph-${node.id}-${index}`;
+    const d = self ? `M${start.x} ${start.y} C${start.x + 64} ${start.y}, ${end.x + 64} ${end.y}, ${end.x} ${end.y}` : `M${start.x} ${start.y} L${end.x} ${end.y}`;
+    const x = self ? start.x + 64 : (start.x + end.x) / 2;
+    const y = self ? (start.y + end.y) / 2 : (start.y + end.y) / 2 - 8;
+    return `<defs><marker id="${marker}" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="${stroke}"/></marker></defs><path data-source="${escapeXml(link.source)}" data-target="${escapeXml(link.target)}" d="${d}" fill="none" stroke="${stroke}"${node.directed ? ` marker-end="url(#${marker})"` : ""}/>${link.label ? `<rect x="${x - 55}" y="${y - 14}" width="110" height="20" fill="${fill}"/>${textBlock(link.label, x - 55, y - 16, 110, 20, 12, textColor, family)}` : ""}`;
   });
-  const parts: string[] = [];
-  for (const link of node.links) {
-    const source = centers.get(link.source);
-    const target = centers.get(link.target);
-    if (!source || !target) continue;
-    parts.push(`<line x1="${source.x}" y1="${source.y}" x2="${target.x}" y2="${target.y}" stroke="#334155" marker-end="${node.directed ? "url(#graph-arrow)" : ""}"/>`);
-  }
-  for (const vertex of node.vertices) {
-    const center = centers.get(vertex.id);
-    if (!center) continue;
-    parts.push(`<circle cx="${center.x}" cy="${center.y}" r="16" fill="#ffffff" stroke="#1f2937"/>`);
-    parts.push(`<text x="${center.x}" y="${center.y + 4}" text-anchor="middle" font-size="11" font-family="${escapeXml(family)}" fill="${textColor}">${escapeXml(vertex.label)}</text>`);
-  }
-  return parts.join("");
+  return links.join("") + vertices.map((vertex) => vertexBody(vertex, fill, stroke, textColor, family, fontSize(node))).join("");
 }
 
-function tableBody(node: Extract<DiagramNode, { type: "table" }>, fill: string, stroke: string, textColor: string, family: string): string {
-  const rows = [node.headers, ...node.cells];
-  const cellW = node.width / node.headers.length;
-  const cellH = node.height / rows.length;
-  return rows.flatMap((row, r) => row.map((value, c) => {
-    const merge = node.merges.find((m) => r >= m.row && r < m.row + m.rowSpan && c >= m.column && c < m.column + m.columnSpan);
-    if (merge && (merge.row !== r || merge.column !== c)) return "";
-    const w = cellW * (merge?.columnSpan ?? 1);
-    const h = cellH * (merge?.rowSpan ?? 1);
-    return `<rect x="${c * cellW}" y="${r * cellH}" width="${w}" height="${h}" fill="${r === 0 ? "#e2e8f0" : fill}" stroke="${stroke}"/>` + textBlock(value, c * cellW + 6, r * cellH + 4, w - 12, h - 8, fontSize(node), textColor, family);
-  })).join("");
+function semanticBody(node: DiagramNode, fill: string, stroke: string, textColor: string, family: string): string | null {
+  const size = fontSize(node);
+  if (node.type === "class" || node.type === "entity") {
+    const sections = [[...(node.type === "class" && node.stereotype ? [`«${node.stereotype}»`] : []), node.name], node.attributes, ...(node.type === "class" ? [node.methods] : [])];
+    let y = 8;
+    return sections.map((section, index) => {
+      let body = index ? `<line x1="1" y1="${y}" x2="${node.width - 1}" y2="${y}" stroke="${stroke}"/>` : "";
+      for (const value of section) { const height = labelHeight(value, node.width, size); body += textBlock(value, 8, y, node.width - 16, height, size, textColor, family); y += height; }
+      if (!section.length) y += 20;
+      return body;
+    }).join("");
+  }
+  if (node.type === "tensor") {
+    const nameHeight = labelHeight(node.name, node.width, size + 2);
+    return textBlock(node.name, 8, 8, node.width - 16, nameHeight, size + 2, textColor, family) + textBlock(node.shape, 8, nameHeight + 16, node.width - 16, node.height - nameHeight - 24, size, textColor, family);
+  }
+  if (node.type === "state" && node.kind !== "state") {
+    const cx = node.width / 2, cy = Math.min(24, node.height / 3);
+    return `${node.kind === "final" ? `<circle cx="${cx}" cy="${cy}" r="16" fill="${fill}" stroke="${stroke}"/>` : ""}<circle cx="${cx}" cy="${cy}" r="10" fill="${stroke}"/>${textBlock(node.text, 4, cy + 18, node.width - 8, node.height - cy - 20, size, textColor, family)}`;
+  }
+  if (node.type === "swimlane") {
+    const vertical = node.direction === "vertical";
+    return `<rect x="1" y="1" width="${vertical ? node.width - 2 : 48}" height="${vertical ? 42 : node.height - 2}" fill="#e2e8f0" stroke="${stroke}"/>` + (vertical ? textBlock(node.title, 4, 4, node.width - 8, 34, size, textColor, family) : `<g transform="translate(0 ${node.height}) rotate(-90)">${textBlock(node.title, 4, 4, node.height - 8, 38, size, textColor, family)}</g>`);
+  }
+  if (node.type === "axis") {
+    const vertical = node.direction === "vertical";
+    const x1 = vertical ? node.width / 2 : 36, y1 = vertical ? node.height - 36 : node.height / 2;
+    const x2 = vertical ? x1 : node.width - 24, y2 = vertical ? 40 : y1;
+    let body = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}"/><path d="${vertical ? `M${x2 - 5} ${y2 + 8} L${x2} ${y2} L${x2 + 5} ${y2 + 8}` : `M${x2 - 8} ${y2 - 5} L${x2} ${y2} L${x2 - 8} ${y2 + 5}`}" fill="none" stroke="${stroke}"/>`;
+    for (const tick of node.ticks) {
+      const ratio = (tick.value - node.min) / (node.max - node.min);
+      const x = x1 + ratio * (x2 - x1), y = y1 + ratio * (y2 - y1);
+      body += `<line x1="${vertical ? x - 5 : x}" y1="${vertical ? y : y - 5}" x2="${vertical ? x + 5 : x}" y2="${vertical ? y : y + 5}" stroke="${stroke}"/>`;
+      body += textBlock(tick.label ?? String(tick.value), vertical ? x - 72 : x - 40, vertical ? y - 14 : y + 8, 64, 28, size, textColor, family);
+    }
+    return body + textBlock(node.title, vertical ? 4 : Math.max(4, node.width - 180), 2, vertical ? node.width - 8 : Math.min(172, node.width - 8), 30, size, textColor, family);
+  }
+  if (node.type === "timeline") {
+    const entries = node.milestones.map((value, index) => ({ ...value, index })).sort((a, b) => a.date.localeCompare(b.date) || a.index - b.index);
+    const step = (node.width - 32) / Math.max(1, entries.length);
+    let body = textBlock(node.title, 8, 4, node.width - 16, 30, size + 2, textColor, family) + `<line x1="16" y1="86" x2="${node.width - 16}" y2="86" stroke="${stroke}"/>`;
+    entries.forEach((entry, index) => {
+      const x = 16 + step * (index + .5);
+      body += `<circle cx="${x}" cy="86" r="5" fill="${stroke}"/>` + textBlock(entry.date, x - step / 2 + 8, 40, step - 16, 30, size, textColor, family) + textBlock(entry.label, x - step / 2 + 8, 104, step - 16, node.height - 112, size, textColor, family);
+    });
+    return body;
+  }
+  return null;
 }
 
 export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}): string {
-  const fill = color(node.style?.fill, node.type === "container" ? "#f8fafc" : node.type === "text" ? "transparent" : "#ffffff");
+  node = projectSemanticNode([node], node);
+  const fill = color(node.style?.fill, isContainerNode(node) ? "#f8fafc" : node.type === "text" ? "transparent" : "#ffffff");
   const stroke = color(node.style?.stroke, "#1f2937");
   const textColor = color(node.style?.color, "#111827");
   const family = node.style?.fontFamily ?? "Segoe UI, sans-serif";
   const strokeWidth = node.style?.strokeWidth ?? 1.5;
   const parts = [localShape(node, fill, stroke, strokeWidth)];
-  if (node.type === "image" && node.src.startsWith("data:image/")) {
+  const semantic = semanticBody(node, fill, stroke, textColor, family);
+  if (semantic !== null) { parts.push(semantic); } else if (node.type === "image" && node.src.startsWith("data:image/")) {
     parts.push(`<image href="${escapeXml(node.src)}" x="0" y="0" width="${node.width}" height="${node.height}"/>`);
   } else if (node.type === "equation") {
     if (options.equationRenderer) {
@@ -242,7 +245,7 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
       parts.push(`<foreignObject x="8" y="8" width="${Math.max(1, node.width - 16)}" height="${Math.max(1, node.height - 16)}"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;height:100%;font-size:${fontSize(node)}px;">${html}</div></foreignObject>`);
     }
   } else if (node.type === "table") {
-    parts.push(tableBody(node, fill, stroke, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family));
   } else if (node.type === "lifeline") {
     parts.push(textBlock(node.text, 6, 4, node.width - 12, 34, fontSize(node), textColor, family));
   } else if (node.type === "message") {
@@ -250,17 +253,17 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
   } else if (node.type === "activation") {
     // An activation has no textual body.
   } else if (node.type === "matrix") {
-    parts.push(matrixBody(node, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family));
   } else if (node.type === "vector") {
-    parts.push(cellsBody(node.components, node.orientation !== "row", node.width, node.height, undefined, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family));
   } else if (node.type === "array" || node.type === "queue") {
-    parts.push(cellsBody(node.items, false, node.width, node.height, node.highlightIndex, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family));
   } else if (node.type === "stack") {
-    parts.push(cellsBody(node.items, true, node.width, node.height, node.highlightIndex, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family));
   } else if (node.type === "tree") {
-    parts.push(treeBody(node.root, node.width, node.height, textColor, family));
+    parts.push(treeBody(node, fill, stroke, textColor, family));
   } else if (node.type === "graph") {
-    parts.push(graphBody(node, textColor, family));
+    parts.push(graphBody(node, fill, stroke, textColor, family));
   } else if (node.type === "container") {
     parts.push(`<text x="12" y="20" font-size="13" font-family="${escapeXml(family)}" fill="${textColor}">${escapeXml(node.title)}</text>`);
   } else if (node.type === "brace") {
@@ -273,20 +276,14 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
   return parts.join("");
 }
 
-function handlePoint(node: DiagramNode, handle: HandleSide | undefined, other: { x: number; y: number }): { x: number; y: number } {
-  const box = { x: 0, y: 0, width: node.width, height: node.height };
-  const center = { x: node.width / 2, y: node.height / 2 };
-  const side = handle ?? (Math.abs(other.x - center.x) > Math.abs(other.y - center.y) ? (other.x > center.x ? "right" : "left") : other.y > center.y ? "bottom" : "top");
-  if (side === "top") return { x: box.width / 2, y: 0 };
-  if (side === "bottom") return { x: box.width / 2, y: box.height };
-  if (side === "left") return { x: 0, y: box.height / 2 };
-  return { x: box.width, y: box.height / 2 };
-}
-
 export function renderEdgePath(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, sourceSide: HandleSide | undefined, targetSide: HandleSide | undefined): string {
+  const polyline = (points: { x: number; y: number }[]) => {
+    // Zero-length terminal segments can give SVG arrowheads the wrong tangent.
+    const distinct = points.filter((point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y);
+    return `M ${distinct.map((point) => `${point.x} ${point.y}`).join(" L ")}`;
+  };
   if (edge.waypoints && edge.waypoints.length > 0) {
-    const points = [source, ...edge.waypoints, target];
-    return `M ${points.map((point) => `${point.x} ${point.y}`).join(" L ")}`;
+    return polyline([source, ...edge.waypoints, target]);
   }
   if (edge.router === "straight") return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
   if (edge.router === "curved") {
@@ -303,9 +300,9 @@ export function renderEdgePath(edge: DiagramEdge, source: { x: number; y: number
   const midX = (source.x + target.x) / 2;
   const midY = (source.y + target.y) / 2;
   if (sourceSide === "left" || sourceSide === "right" || targetSide === "left" || targetSide === "right") {
-    return `M ${source.x} ${source.y} L ${midX} ${source.y} L ${midX} ${target.y} L ${target.x} ${target.y}`;
+    return polyline([source, { x: midX, y: source.y }, { x: midX, y: target.y }, target]);
   }
-  return `M ${source.x} ${source.y} L ${source.x} ${midY} L ${target.x} ${midY} L ${target.x} ${target.y}`;
+  return polyline([source, { x: source.x, y: midY }, { x: target.x, y: midY }, target]);
 }
 
 export function renderEdgeSvg(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, options: { markerId: string; family?: string; defaultColor?: string; interactive?: boolean }): string {
@@ -313,10 +310,11 @@ export function renderEdgeSvg(edge: DiagramEdge, source: { x: number; y: number 
   const markerId = escapeXml(options.markerId);
   const path = renderEdgePath(edge, source, target, edge.sourceHandle, edge.targetHandle);
   const dash = edge.lineStyle === "dashed" ? "6 4" : edge.lineStyle === "dotted" ? "1.5 3" : "";
-  const markers = `<defs><marker id="${markerId}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto-start-reverse"><path d="M0 0 L10 4 L0 8 Z" fill="${stroke}"/></marker></defs>`;
+  const markers = `<defs><marker id="${markerId}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 Z" fill="${stroke}"/></marker><marker id="${markerId}-start" markerWidth="10" markerHeight="8" refX="1" refY="4" orient="auto"><path d="M10 0 L0 4 L10 8 Z" fill="${stroke}"/></marker></defs>`;
   const markerEnd = edge.arrowEnd ? ` marker-end="url(#${markerId})"` : "";
-  const markerStart = edge.arrowStart ? ` marker-start="url(#${markerId})"` : "";
-  const label = edge.label ? `<text x="${(source.x + target.x) / 2}" y="${(source.y + target.y) / 2 - 6}" text-anchor="middle" font-size="12" font-family="${escapeXml(options.family ?? "Segoe UI, sans-serif")}" fill="${stroke}">${escapeXml(edge.label)}</text>` : "";
+  const markerStart = edge.arrowStart ? ` marker-start="url(#${markerId}-start)"` : "";
+  const labelPoint = edgeLabelPosition(edge, source, target);
+  const label = edge.label ? `<text x="${labelPoint.x}" y="${labelPoint.y}" text-anchor="middle" font-size="12" font-family="${escapeXml(options.family ?? "Segoe UI, sans-serif")}" fill="${stroke}">${escapeXml(edge.label)}</text>` : "";
   const interaction = options.interactive ? `<path d="${path}" fill="none" stroke="transparent" stroke-width="20" class="react-flow__edge-interaction"/>` : "";
   return `${markers}<path d="${path}" class="react-flow__edge-path" style="fill:none;stroke:${stroke};stroke-width:${edge.width ?? 1.5};stroke-dasharray:${dash || "none"}" fill="none" stroke="${stroke}" stroke-width="${edge.width ?? 1.5}"${dash ? ` stroke-dasharray="${dash}"` : ""}${markerEnd}${markerStart}/>${interaction}${label}`;
 }
@@ -333,14 +331,14 @@ export function renderDocumentSvg(document: DiagramDocument, options: RenderOpti
     const origin = absolutePosition(projected, node.id);
     return `<g transform="translate(${origin.x - bounds.x + padding} ${origin.y - bounds.y + padding})">${renderNodeInner(node, options)}</g>`;
   };
-  const containers = nodes.filter((node) => node.type === "container");
+  const containers = nodes.filter(isContainerNode);
   const depth = (node: DiagramNode) => {
     let count = 0; let current = node;
     while (current.parentId && count < nodes.length) { current = nodes.find((item) => item.id === current.parentId)!; if (!current) break; count++; }
     return count;
   };
   const containerMarkup = containers.sort((a, b) => depth(a) - depth(b)).map(markupFor).join("");
-  const nodeMarkup = nodes.filter((node) => node.type !== "container").map(markupFor).join("");
+  const nodeMarkup = nodes.filter((node) => !isContainerNode(node)).map(markupFor).join("");
   const labels = options.annotateIds
     ? nodes
         .map((node) => {
@@ -357,16 +355,10 @@ export function renderDocumentSvg(document: DiagramDocument, options: RenderOpti
       const sourceNode = projected.find((node) => node.id === edge.source);
       const targetNode = projected.find((node) => node.id === edge.target);
       if (!sourceNode || !targetNode) return "";
-      const sourceOrigin = absolutePosition(projected, sourceNode.id);
-      const targetOrigin = absolutePosition(projected, targetNode.id);
-      const sourceAbs = { x: sourceOrigin.x + sourceNode.width / 2, y: sourceOrigin.y + sourceNode.height / 2 };
-      const targetAbs = { x: targetOrigin.x + targetNode.width / 2, y: targetOrigin.y + targetNode.height / 2 };
-      const sourceLocal = handlePoint(sourceNode, edge.sourceHandle, { x: targetAbs.x - sourceOrigin.x, y: targetAbs.y - sourceOrigin.y });
-      const targetLocal = handlePoint(targetNode, edge.targetHandle, { x: sourceAbs.x - targetOrigin.x, y: sourceAbs.y - targetOrigin.y });
-      const source = { x: sourceOrigin.x + sourceLocal.x - bounds.x + padding, y: sourceOrigin.y + sourceLocal.y - bounds.y + padding };
-      const target = { x: targetOrigin.x + targetLocal.x - bounds.x + padding, y: targetOrigin.y + targetLocal.y - bounds.y + padding };
-      const side = (point: { x: number; y: number }, node: DiagramNode): HandleSide => point.x === 0 ? "left" : point.x === node.width ? "right" : point.y === 0 ? "top" : "bottom";
-      const translated = { ...edge, sourceHandle: edge.sourceHandle ?? side(sourceLocal, sourceNode), targetHandle: edge.targetHandle ?? side(targetLocal, targetNode), waypoints: edge.waypoints?.map((point) => ({ x: point.x - bounds.x + padding, y: point.y - bounds.y + padding })) };
+      const endpoints = edgeEndpoints(projected, edge)!;
+      const source = { x: endpoints.source.x - bounds.x + padding, y: endpoints.source.y - bounds.y + padding };
+      const target = { x: endpoints.target.x - bounds.x + padding, y: endpoints.target.y - bounds.y + padding };
+      const translated = { ...edge, sourceHandle: endpoints.sourceHandle, targetHandle: endpoints.targetHandle, waypoints: edge.waypoints?.map((point) => ({ x: point.x - bounds.x + padding, y: point.y - bounds.y + padding })) };
       return renderEdgeSvg(translated, source, target, { markerId: `m${index}`, family, defaultColor: edgeColor });
     })
     .join("");

@@ -1,4 +1,4 @@
-import { absolutePosition, operationSchema } from "@drawit/core";
+import { absolutePosition, projectSemanticNode, operationSchema } from "@drawit/core";
 import { drawitHome } from "@drawit/core/node";
 import type { SessionResponse } from "@drawit/session/protocol";
 import { callFile } from "./fileStore.js";
@@ -40,7 +40,7 @@ export function compactResult(response: SessionResponse, includeDocument = false
           viewport: response.view?.viewport ?? { x: 0, y: 0, zoom: 1 },
           nodes: document.nodes.map((node) => {
             const absolute = absolutePosition(document.nodes, node.id);
-            return { ...node, absoluteX: absolute.x, absoluteY: absolute.y };
+            return { ...node, renderedWidth: projectSemanticNode(document.nodes, node).width, renderedHeight: projectSemanticNode(document.nodes, node).height, absoluteX: absolute.x, absoluteY: absolute.y };
           }),
           edges: document.edges,
         }

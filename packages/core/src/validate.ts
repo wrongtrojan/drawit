@@ -1,5 +1,5 @@
-import { absoluteBox, intersectionArea, isAncestor, nodeMap } from "./geometry.js";
-import type { DiagramDocument, DiagramNode, TreeValue } from "./schema.js";
+import { absoluteBox, edgeEndpoints, edgeLabelPosition, intersectionArea, isAncestor, nodeMap } from "./geometry.js";
+import { isContainerNode, type DiagramDocument, type DiagramNode, type TreeValue } from "./schema.js";
 import { textBlockHeight, wrapText } from "./text.js";
 
 export interface Issue {
@@ -17,8 +17,16 @@ function issue(severity: Issue["severity"], code: string, message: string, eleme
 
 export function nodePlainText(node: DiagramNode): string {
   switch (node.type) {
+    case "swimlane":
+    case "axis":
+    case "timeline":
     case "container":
       return node.title;
+    case "class": return [node.name, node.stereotype, ...node.attributes, ...node.methods].join("\n");
+    case "entity": return [node.name, ...node.attributes].join("\n");
+    case "relationship": return node.name;
+    case "tensor": return `${node.name}\n${node.shape}`;
+    case "state": return node.text;
     case "equation":
       return node.latex;
     case "brace":
@@ -81,6 +89,15 @@ export function validateDocument(document: DiagramDocument): Issue[] {
     seen.add(node.id);
     if (node.type === "image" && imageUnsafe(node.src)) {
       issues.push(issue("error", "UNSAFE_IMAGE", `Image ${node.id} must be an inline PNG, JPEG, GIF, WEBP, or SVG data URL`, node.id));
+    }
+    if (node.type === "axis" && (node.min >= node.max || node.ticks.some((tick) => tick.value < node.min || tick.value > node.max) || new Set(node.ticks.map((tick) => tick.value)).size !== node.ticks.length)) {
+      issues.push(issue("error", "INVALID_AXIS", `Axis ${node.id} requires min < max and distinct ticks within its range`, node.id));
+    }
+    if (node.type === "timeline") {
+      const dates = node.milestones.map((item) => Date.parse(item.date));
+      if (dates.some((date, index) => !Number.isFinite(date) || !/^\d{4}-\d{2}-\d{2}$/.test(node.milestones[index]!.date) || new Date(date).toISOString().slice(0, 10) !== node.milestones[index]!.date)) {
+        issues.push(issue("error", "INVALID_TIMELINE", `Timeline ${node.id} dates must be valid YYYY-MM-DD calendar dates`, node.id));
+      }
     }
     if (node.type === "matrix") {
       const columns = node.cells[0]?.length ?? 0;
@@ -151,7 +168,7 @@ export function validateDocument(document: DiagramDocument): Issue[] {
       issues.push(issue("error", "MISSING_PARENT", `Node ${node.id} references missing parent ${node.parentId}`, node.id));
       continue;
     }
-    if (parent.type !== "container") {
+    if (!isContainerNode(parent)) {
       issues.push(issue("error", "PARENT_NOT_CONTAINER", `Parent ${parent.id} of ${node.id} must be a container`, node.id));
     }
     const seenWalk = new Set<string>();
@@ -164,7 +181,7 @@ export function validateDocument(document: DiagramDocument): Issue[] {
       seenWalk.add(cursor.id);
       cursor = byId.get(cursor.parentId);
     }
-    if (parent.type === "container") {
+    if (isContainerNode(parent)) {
       const outside =
         node.x < -1 || node.y < -1 || node.x + node.width > parent.width + 1 || node.y + node.height > parent.height + 1;
       if (outside) {
@@ -188,8 +205,8 @@ export function validateDocument(document: DiagramDocument): Issue[] {
     const text = nodePlainText(node).trim();
     if (text && node.type !== "image" && node.type !== "graph" && node.type !== "tree") {
       const fontSize = node.style?.fontSize ?? 14;
-      const lines = wrapText(text, fontSize, Math.max(8, node.width - 16));
-      if (textBlockHeight(lines.length, fontSize) > node.height - 12) {
+      const lines = wrapText(text, fontSize, Math.max(8, box.width - 16));
+      if (textBlockHeight(lines.length, fontSize) > box.height - 12) {
         issues.push(issue("warning", "TEXT_OVERFLOW", `Text in ${node.id} may overflow its box`, node.id));
       }
     }
@@ -224,14 +241,10 @@ export function validateDocument(document: DiagramDocument): Issue[] {
     const source = byId.get(edge.source);
     const target = byId.get(edge.target);
     if (!source || !target) continue;
-    const sourceBox = absoluteBox(document.nodes, source);
-    const targetBox = absoluteBox(document.nodes, target);
-    const mid = {
-      x: (sourceBox.x + sourceBox.width / 2 + targetBox.x + targetBox.width / 2) / 2,
-      y: (sourceBox.y + sourceBox.height / 2 + targetBox.y + targetBox.height / 2) / 2,
-    };
+    const endpoints = edgeEndpoints(document.nodes, edge)!;
+    const mid = edgeLabelPosition({ ...edge, sourceHandle: endpoints.sourceHandle, targetHandle: endpoints.targetHandle }, endpoints.source, endpoints.target);
     for (const node of document.nodes) {
-      if (node.id === source.id || node.id === target.id) continue;
+      if (node.id === source.id || node.id === target.id || isContainerNode(node)) continue;
       const box = absoluteBox(document.nodes, node);
       const inside = mid.x >= box.x && mid.x <= box.x + box.width && mid.y >= box.y && mid.y <= box.y + box.height;
       if (inside) {

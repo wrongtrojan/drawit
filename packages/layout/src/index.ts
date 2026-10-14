@@ -1,4 +1,4 @@
-import { contentBounds, type DiagramDocument, type DiagramNode, type LayoutDirection } from "@drawit/core";
+import { contentBounds, projectSemanticNode, type DiagramDocument, type DiagramNode, type LayoutDirection } from "@drawit/core";
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { ElkNode } from "elkjs";
 
@@ -23,6 +23,8 @@ export interface LayoutUpdate {
 }
 
 async function layoutLevel(nodes: DiagramNode[], document: DiagramDocument, request: LayoutRequest): Promise<Map<string, { x: number; y: number }>> {
+  const parent = document.nodes.find((item) => item.id === nodes[0]?.parentId);
+  const padding = parent?.type === "swimlane" ? (parent.direction === "horizontal" ? "[top=24,left=72,bottom=24,right=24]" : "[top=64,left=24,bottom=24,right=24]") : "[top=32,left=24,bottom=24,right=24]";
   const ids = new Set(nodes.map((node) => node.id));
   const graph: ElkNode = {
     id: "root",
@@ -31,7 +33,7 @@ async function layoutLevel(nodes: DiagramNode[], document: DiagramDocument, requ
       "elk.direction": directions[request.direction],
       "elk.spacing.nodeNode": String(request.nodeSpacing),
       "elk.layered.spacing.nodeNodeBetweenLayers": String(request.rankSpacing),
-      "elk.padding": "[top=24,left=24,bottom=24,right=24]",
+      "elk.padding": padding,
     },
     children: nodes.map((node) => ({
       id: node.id,
@@ -56,7 +58,8 @@ async function layoutLevel(nodes: DiagramNode[], document: DiagramDocument, requ
 export async function layoutDocument(document: DiagramDocument, request: LayoutRequest): Promise<{ updates: LayoutUpdate[]; bounds: ReturnType<typeof contentBounds> }> {
   const updates: LayoutUpdate[] = [];
   const levels = new Map<string, DiagramNode[]>();
-  for (const node of document.nodes) {
+  for (const stored of document.nodes) {
+    const node = projectSemanticNode(document.nodes, stored);
     const key = node.parentId ?? "";
     const list = levels.get(key) ?? [];
     list.push(node);
@@ -82,7 +85,7 @@ export async function layoutDocument(document: DiagramDocument, request: LayoutR
     }
     if (parentId) {
       const parent = document.nodes.find((node) => node.id === parentId);
-      if (parent && (maxX + 24 > parent.width || maxY + 24 > parent.height)) {
+      if (parent && !parent.pinned && (maxX + 24 > parent.width || maxY + 24 > parent.height)) {
         updates.push({
           id: parent.id,
           patch: { width: Math.max(parent.width, maxX + 24), height: Math.max(parent.height, maxY + 24) },

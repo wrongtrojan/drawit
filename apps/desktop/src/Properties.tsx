@@ -1,5 +1,6 @@
+import { SemanticFields } from "./SemanticFields.js";
 import { useState } from "react";
-import { projectSemanticNode, stylePresets, type DiagramDocument, type DiagramNode, type NodePatch, type StylePresetName } from "@drawit/core";
+import { isContainerNode, projectSemanticNode, stylePresets, type DiagramDocument, type DiagramNode, type NodePatch, type StylePresetName } from "@drawit/core";
 
 interface PropertiesProps {
   document: DiagramDocument;
@@ -42,11 +43,11 @@ function NodeFields({ node, nodes, onPatch }: { node: DiagramNode; nodes: Diagra
         <NumberField label="X" disabled={node.type === "message" || node.type === "activation"} value={visual.x} onChange={(x) => onPatch({ x })} />
         <NumberField label="Y" value={node.y} onChange={(y) => onPatch({ y })} />
         <NumberField label="宽" disabled={node.type === "message"} value={visual.width} onChange={(width) => onPatch({ width })} />
-        <NumberField label="高" value={node.height} onChange={(height) => onPatch({ height })} />
+        <NumberField label="高" value={visual.height} onChange={(height) => onPatch({ height })} />
       </div>
       </fieldset>
       <fieldset><legend>文字与内容</legend>
-      {"text" in node || node.type === "container" || node.type === "equation" ? (
+      {"text" in node || "title" in node || node.type === "equation" ? (
         <label>
           {node.type === "equation" ? "LaTeX" : "文本"}
           <textarea value={text} rows={node.type === "equation" ? 4 : 3} onChange={(event) => onPatch(textPatch(node, event.target.value))} />
@@ -70,6 +71,8 @@ function NodeFields({ node, nodes, onPatch }: { node: DiagramNode; nodes: Diagra
           <textarea value={node.items.join("\n")} rows={5} onChange={(event) => onPatch({ items: event.target.value.split(/\r?\n/) })} />
         </label>
       ) : null}
+      <SemanticFields node={node} onPatch={onPatch} />
+      <ReferenceField label="所属容器或泳道" value={node.parentId ?? ""} nodes={nodes.filter((item) => isContainerNode(item) && item.id !== node.id)} optional onChange={(parentId) => onPatch({ parentId: parentId || null })} />
       {node.type === "table" ? <TableFields node={node} onPatch={onPatch} /> : null}
       {node.type === "message" ? <>
         <ReferenceField label="来源生命线" value={node.sourceId} nodes={nodes.filter((item) => item.type === "lifeline" && item.parentId === node.parentId)} onChange={(sourceId) => onPatch({ sourceId })} />
@@ -130,7 +133,7 @@ function MatrixFields({ node, onPatch }: { node: Extract<DiagramNode, { type: "m
 }
 
 function textPatch(node: DiagramNode, value: string): NodePatch {
-  if (node.type === "container") return { title: value };
+  if ("title" in node) return { title: value };
   if (node.type === "equation") return { latex: value };
   return { text: value };
 }
