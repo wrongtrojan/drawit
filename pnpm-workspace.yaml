@@ -1,0 +1,7 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+
+allowBuilds:
+  '@resvg/resvg-js': true
+  esbuild: true

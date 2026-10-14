@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-drawit-session"
+description = "Allows the desktop shell to read the local drawit session descriptor."
+commands.allow = ["drawit_session"]

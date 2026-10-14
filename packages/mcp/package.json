@@ -1,0 +1,33 @@
+{
+  "name": "@drawit/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "drawit-mcp": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@drawit/core": "workspace:*",
+    "@drawit/layout": "workspace:*",
+    "@drawit/render": "workspace:*",
+    "@drawit/session": "workspace:*",
+    "@modelcontextprotocol/server": "^2.3.1",
+    "@resvg/resvg-js": "^2.6.2",
+    "ws": "^8.18.2",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.1",
+    "esbuild": "^0.25.5",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

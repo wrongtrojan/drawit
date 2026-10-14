@@ -1,0 +1,30 @@
+{
+  "name": "@drawit/session",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/server.ts",
+    "./protocol": "./src/protocol.ts"
+  },
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@drawit/core": "workspace:*",
+    "@drawit/layout": "workspace:*",
+    "@drawit/render": "workspace:*",
+    "ws": "^8.18.2",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,57 @@
+:root {
+  color: #0f172a;
+  background: #e7ebf0;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { margin: 0; height: 100%; }
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+button:disabled { opacity: 0.45; cursor: default; }
+
+.app {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 280px;
+  grid-template-rows: 48px minmax(0, 1fr) auto 28px;
+  height: 100vh;
+}
+
+.toolbar { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; padding: 8px; background: #f8fafc; border-bottom: 1px solid #d6dde6; overflow-x: auto; }
+.palette { grid-row: 2 / 4; overflow: auto; background: #f8fafc; border-right: 1px solid #d6dde6; padding: 12px; }
+.canvas { grid-column: 2; grid-row: 2 / 4; min-width: 0; min-height: 0; }
+.properties { grid-row: 2 / 4; overflow: auto; background: #f8fafc; border-left: 1px solid #d6dde6; padding: 12px; }
+.log-drawer { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-height: 160px; overflow: auto; background: #fff; border-top: 1px solid #d6dde6; padding: 8px 12px; }
+.status { grid-column: 1 / -1; display: flex; gap: 16px; align-items: center; padding: 0 12px; background: #0f172a; color: #e2e8f0; }
+.status button { color: #e2e8f0; background: transparent; border-color: #334155; }
+.status-message { margin-left: auto; opacity: 0.8; }
+
+.palette input, .properties input, .properties textarea, .properties select { width: 100%; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; background: #fff; }
+.palette-list, .preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.palette h2, .properties h2 { margin: 12px 0 8px; font-size: 12px; letter-spacing: 0.04em; color: #475569; }
+.palette-list button { flex: 1 1 42%; }
+.properties label, .matrix-editor { display: block; margin: 10px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.matrix-row { display: flex; gap: 4px; margin-bottom: 4px; }
+.muted, .meta { color: #64748b; }
+.divider { width: 1px; height: 18px; background: #cbd5e1; }
+.file-button input { display: none; }
+.shape-node { width: 100%; height: 100%; }
+.shape-node svg { display: block; overflow: visible; }
+.loading { display: grid; place-items: center; height: 100vh; }
+.check { display: flex; gap: 8px; align-items: center; }
+.check input { width: auto; }
