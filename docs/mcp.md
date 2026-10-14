@@ -4,7 +4,7 @@
 
 ## 开发版
 
-在仓库根目录运行 `pnpm install`、`pnpm dev`。MCP 的开发入口是 `tsx packages/mcp/src/index.ts`。可使用仓库的 `.cursor/mcp.json`，或将下例中的仓库路径替换为实际绝对路径：
+在仓库根目录运行 `pnpm install`、`pnpm dev`。MCP 的开发入口是 `tsx packages/mcp/src/index.ts`。把下面的 JSON 写进自己的 Cursor 或 Claude Desktop 配置，并把仓库路径换成实际绝对路径。不要把这份配置提交进 drawit 仓库。
 
 ```json
 {
