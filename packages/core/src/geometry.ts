@@ -20,8 +20,9 @@ export function absolutePosition(nodes: DiagramNode[], id: string): { x: number;
   while (current) {
     if (seen.has(current.id)) break;
     seen.add(current.id);
-    x += current.x;
-    y += current.y;
+    const projected = projectSemanticNode(nodes, current);
+    x += projected.x;
+    y += projected.y;
     if (!current.parentId) break;
     current = byId.get(current.parentId);
   }
@@ -30,7 +31,8 @@ export function absolutePosition(nodes: DiagramNode[], id: string): { x: number;
 
 export function absoluteBox(nodes: DiagramNode[], node: DiagramNode): Box {
   const origin = absolutePosition(nodes, node.id);
-  return { x: origin.x, y: origin.y, width: node.width, height: node.height };
+  const projected = projectSemanticNode(nodes, node);
+  return { x: origin.x, y: origin.y, width: projected.width, height: projected.height };
 }
 
 export function intersectionArea(a: Box, b: Box): number {
@@ -65,4 +67,21 @@ export function contentBounds(nodes: DiagramNode[], canvas: { width: number; hei
     maxY = Math.max(maxY, box.y + box.height);
   }
   return { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) };
+}
+
+// Semantic endpoints determine horizontal placement; stored y/height remain editable.
+export function projectSemanticNode(nodes: DiagramNode[], node: DiagramNode): DiagramNode {
+  if (node.type === "activation") {
+    const line = nodes.find((item) => item.id === node.lifelineId);
+    return line ? { ...node, x: line.x + (line.width - node.width) / 2 } : node;
+  }
+  if (node.type === "message") {
+    const source = nodes.find((item) => item.id === node.sourceId);
+    const target = nodes.find((item) => item.id === node.targetId);
+    if (!source || !target) return node;
+    const start = source.x + source.width / 2;
+    const end = target.x + target.width / 2;
+    return { ...node, x: Math.min(start, end), width: Math.max(48, Math.abs(end - start)), meta: { ...node.meta, renderReverse: start > end, renderSelf: source.id === target.id } };
+  }
+  return node;
 }

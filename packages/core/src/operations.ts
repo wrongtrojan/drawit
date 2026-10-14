@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import { materializeNode } from "./document.js";
 import { DrawitError } from "./errors.js";
-import { absoluteBox, absolutePosition } from "./geometry.js";
+import { absoluteBox, absolutePosition, isAncestor } from "./geometry.js";
 import { createId } from "./ids.js";
 import {
   canvasSchema,
@@ -14,6 +14,7 @@ import {
   nodeStyleSchema,
   themeSchema,
   treeValueSchema,
+  tableMergeSchema,
   type DiagramDocument,
   type DiagramEdge,
   type DiagramNode,
@@ -73,6 +74,11 @@ export const nodePatchSchema = z
     links: z.array(z.object({ source: z.string(), target: z.string(), label: z.string().optional() })).optional(),
     directed: z.boolean().optional(),
     root: treeValueSchema.optional(),
+    headers: z.array(z.string()).min(1).optional(),
+    merges: z.array(tableMergeSchema).optional(),
+    sourceId: idSchema.optional(),
+    lifelineId: idSchema.optional(),
+    messageKind: z.enum(["sync", "async", "return"]).optional(),
     meta: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
@@ -105,6 +111,9 @@ export const edgeInputSchema = z
   .strict();
 
 export const operationSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("align"), nodeIds: z.array(idSchema).min(2).max(200), axis: z.enum(["left", "center", "right", "top", "middle", "bottom"]) }),
+  z.object({ op: z.literal("distribute"), nodeIds: z.array(idSchema).min(3).max(200), axis: z.enum(["horizontal", "vertical"]) }),
+  z.object({ op: z.literal("snapToGrid"), nodeIds: z.array(idSchema).min(1).max(200), gridSize: z.number().positive().max(200).optional() }),
   z.object({ op: z.literal("addNodes"), nodes: z.array(nodeInputSchema).min(1).max(200) }),
   z.object({
     op: z.literal("updateNodes"),
@@ -224,7 +233,9 @@ function deleteElements(document: DiagramDocument, nodeIds: string[], edgeIds: s
   while (grew) {
     grew = false;
     for (const node of document.nodes) {
-      if (node.parentId && removeNodes.has(node.parentId) && !removeNodes.has(node.id)) {
+      if (((node.parentId && removeNodes.has(node.parentId)) ||
+          (node.type === "message" && (removeNodes.has(node.sourceId) || removeNodes.has(node.targetId))) ||
+          (node.type === "activation" && removeNodes.has(node.lifelineId))) && !removeNodes.has(node.id)) {
         removeNodes.add(node.id);
         grew = true;
       }
@@ -233,6 +244,12 @@ function deleteElements(document: DiagramDocument, nodeIds: string[], edgeIds: s
   const removeEdges = new Set(edgeIds);
   for (const edge of document.edges) {
     if (removeNodes.has(edge.source) || removeNodes.has(edge.target)) removeEdges.add(edge.id);
+  }
+  for (const node of document.nodes) {
+    if (node.type === "annotation" && node.targetId && removeNodes.has(node.targetId) && !removeNodes.has(node.id)) {
+      delete node.targetId;
+      summary.updatedNodeIds.push(node.id);
+    }
   }
   document.nodes = document.nodes.filter((node) => !removeNodes.has(node.id));
   document.edges = document.edges.filter((edge) => !removeEdges.has(edge.id));
@@ -294,10 +311,12 @@ function groupNodes(
   summary: ChangeSummary,
 ): void {
   const unique = [...new Set(nodeIds)];
-  const selected = unique.map((id) => requireNode(document, id));
-  if (selected.some((node) => node.parentId)) {
-    throw new DrawitError("VALIDATION_ERROR", "Only top-level nodes can be grouped");
+  const selected = unique.map((id) => requireNode(document, id)).filter((node) => !unique.some((id) => id !== node.id && isAncestor(document.nodes, id, node.id)));
+  const parentId = selected[0]?.parentId;
+  if (selected.some((node) => node.parentId !== parentId)) {
+    throw new DrawitError("VALIDATION_ERROR", "Grouped nodes must share a parent");
   }
+  const origin = parentId ? absolutePosition(document.nodes, parentId) : { x: 0, y: 0 };
   const boxes = selected.map((node) => absoluteBox(document.nodes, node));
   const padding = 28;
   const minX = Math.min(...boxes.map((box) => box.x)) - padding;
@@ -311,15 +330,16 @@ function groupNodes(
       id,
       type: "container",
       title: title ?? "分组",
-      x: minX,
-      y: minY,
+      x: minX - origin.x,
+      y: minY - origin.y,
+      parentId,
       width: Math.max(80, maxX - minX),
       height: Math.max(80, maxY - minY),
     }),
   );
   summary.addedNodeIds.push(id);
-  for (const node of selected) {
-    const absolute = absoluteBox(document.nodes, node);
+  for (const [index, node] of selected.entries()) {
+    const absolute = boxes[index]!;
     node.parentId = id;
     node.x = absolute.x - minX;
     node.y = absolute.y - minY;
@@ -352,6 +372,50 @@ function ungroup(document: DiagramDocument, containerId: string, summary: Change
   }
 }
 
+function arrange(document: DiagramDocument, operation: Extract<DiagramOperation, { op: "align" | "distribute" | "snapToGrid" }>, summary: ChangeSummary): void {
+  const ids = [...new Set(operation.nodeIds)];
+  const selected = ids.map((id) => requireNode(document, id));
+  if (selected.some((node) => node.parentId && ids.includes(node.parentId))) {
+    throw new DrawitError("VALIDATION_ERROR", "Select a group or its children, not both");
+  }
+  const placed = selected.map((node) => ({ node, box: absoluteBox(document.nodes, node) }));
+  const move = (item: typeof placed[number], x: number, y: number) => {
+    item.node.x += x - item.box.x;
+    item.node.y += y - item.box.y;
+    summary.updatedNodeIds.push(item.node.id);
+  };
+  if (operation.op === "snapToGrid") {
+    const grid = operation.gridSize ?? document.canvas.gridSize ?? 20;
+    for (const item of placed) move(item, Math.round(item.box.x / grid) * grid, Math.round(item.box.y / grid) * grid);
+  } else if (operation.op === "align") {
+    if (placed.length < 2) throw new DrawitError("VALIDATION_ERROR", "Alignment requires two distinct nodes");
+    const left = Math.min(...placed.map(({ box }) => box.x));
+    const top = Math.min(...placed.map(({ box }) => box.y));
+    const right = Math.max(...placed.map(({ box }) => box.x + box.width));
+    const bottom = Math.max(...placed.map(({ box }) => box.y + box.height));
+    for (const item of placed) {
+      const { box } = item;
+      const x = operation.axis === "left" ? left : operation.axis === "right" ? right - box.width : operation.axis === "center" ? (left + right - box.width) / 2 : box.x;
+      const y = operation.axis === "top" ? top : operation.axis === "bottom" ? bottom - box.height : operation.axis === "middle" ? (top + bottom - box.height) / 2 : box.y;
+      move(item, x, y);
+    }
+  } else {
+    if (placed.length < 3) throw new DrawitError("VALIDATION_ERROR", "Distribution requires three distinct nodes");
+    const horizontal = operation.axis === "horizontal";
+    const key = horizontal ? "x" : "y";
+    const size = horizontal ? "width" : "height";
+    placed.sort((a, b) => a.box[key] - b.box[key]);
+    const first = placed[0]!;
+    const last = placed[placed.length - 1]!;
+    const gap = (last.box[key] + last.box[size] - first.box[key] - placed.reduce((sum, item) => sum + item.box[size], 0)) / (placed.length - 1);
+    let cursor = first.box[key];
+    for (const item of placed) {
+      move(item, horizontal ? cursor : item.box.x, horizontal ? item.box.y : cursor);
+      cursor += item.box[size] + gap;
+    }
+  }
+}
+
 export function applyOperationsToDraft(document: DiagramDocument, operations: DiagramOperation[]): ChangeSummary {
   if (operations.length === 0) {
     throw new DrawitError("VALIDATION_ERROR", "At least one operation is required");
@@ -359,6 +423,11 @@ export function applyOperationsToDraft(document: DiagramDocument, operations: Di
   const summary = emptySummary();
   for (const operation of operations) {
     switch (operation.op) {
+      case "align":
+      case "distribute":
+      case "snapToGrid":
+        arrange(document, operation, summary);
+        break;
       case "addNodes":
         addNodes(document, operation.nodes, summary);
         break;

@@ -1,2 +1,2 @@
-export { escapeXml, renderDocumentSvg, renderKatexHtml, renderNodeInner, reviewManifest } from "./svg.js";
+export { escapeXml, renderDocumentSvg, renderKatexHtml, renderNodeInner, renderEdgeSvg, renderEdgePath, reviewManifest } from "./svg.js";
 export type { RenderOptions } from "./svg.js";

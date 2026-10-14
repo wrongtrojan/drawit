@@ -8,7 +8,11 @@
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "build": "pnpm -r --if-present build",
-    "mcp": "pnpm --filter @drawit/mcp start",
-    "build:mcp": "pnpm --filter @drawit/mcp build"
+    "mcp": "pnpm --silent --filter @drawit/mcp start",
+    "build:mcp": "pnpm --filter @drawit/mcp build",
+    "bundle:runtime": "node scripts/bundle-runtime.mjs",
+    "build:desktop": "node scripts/icons.mjs && pnpm bundle:runtime && pnpm --filter @drawit/desktop build",
+    "test:runtime": "node scripts/check-runtime.mjs",
+    "package:dmg": "node scripts/package-dmg.mjs"
   }
 }

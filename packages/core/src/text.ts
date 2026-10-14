@@ -3,23 +3,31 @@ export function estimateCharWidth(fontSize: number): number {
 }
 
 export function wrapText(text: string, fontSize: number, maxWidth: number): string[] {
-  const maxChars = Math.max(1, Math.floor(Math.max(1, maxWidth) / estimateCharWidth(fontSize)));
   const lines: string[] = [];
+  const width = Math.max(1, maxWidth);
   for (const paragraph of text.split(/\r?\n/)) {
-    if (paragraph.length === 0) {
-      lines.push("");
-      continue;
+    const chars = Array.from(paragraph);
+    if (!chars.length) { lines.push(""); continue; }
+    let offset = 0;
+    while (offset < chars.length) {
+      let measured = 0;
+      let end = offset;
+      let space = -1;
+      while (end < chars.length) {
+        const char = chars[end]!;
+        const charWidth = /[\u2e80-\uffff]/u.test(char) || char.codePointAt(0)! > 0xffff ? fontSize : estimateCharWidth(fontSize);
+        if (measured + charWidth > width && end > offset) break;
+        measured += charWidth;
+        if (char === " ") space = end;
+        end++;
+      }
+      if (end < chars.length && space > offset) end = space;
+      lines.push(chars.slice(offset, end).join("").trimEnd());
+      offset = end;
+      while (chars[offset] === " ") offset++;
     }
-    let rest = paragraph;
-    while (rest.length > maxChars) {
-      let breakAt = rest.lastIndexOf(" ", maxChars);
-      if (breakAt <= 0) breakAt = maxChars;
-      lines.push(rest.slice(0, breakAt).trimEnd());
-      rest = rest.slice(breakAt).trimStart();
-    }
-    lines.push(rest);
   }
-  return lines.length > 0 ? lines : [""];
+  return lines.length ? lines : [""];
 }
 
 export function lineHeight(fontSize: number): number {

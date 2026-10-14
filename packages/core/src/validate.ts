@@ -23,6 +23,10 @@ export function nodePlainText(node: DiagramNode): string {
       return node.latex;
     case "brace":
       return node.label;
+    case "table":
+      return [node.headers.join(" "), ...node.cells.map((row) => row.join(" "))].join("\n");
+    case "activation":
+      return "";
     case "matrix":
       return node.cells.map((row) => row.join(" ")).join("\n");
     case "vector":
@@ -37,6 +41,8 @@ export function nodePlainText(node: DiagramNode): string {
       return node.vertices.map((vertex) => vertex.label).join(" ");
     case "image":
       return node.alt;
+    case "lifeline":
+    case "message":
     case "annotation":
     case "flowchart":
     case "rectangle":
@@ -106,6 +112,39 @@ export function validateDocument(document: DiagramDocument): Issue[] {
 
   const byId = nodeMap(document.nodes);
   for (const node of document.nodes) {
+    if (node.type === "annotation" && node.targetId && !byId.has(node.targetId)) {
+      issues.push(issue("error", "MISSING_ENDPOINT", `Annotation ${node.id} references a missing target`, node.id));
+    }
+    if (node.type === "message" || node.type === "activation") {
+      const refs = node.type === "message" ? [node.sourceId, node.targetId] : [node.lifelineId];
+      for (const id of refs) {
+        const target = byId.get(id);
+        if (!target || target.type !== "lifeline" || target.parentId !== node.parentId) {
+          issues.push(issue("error", "INVALID_SEQUENCE", `${node.id} must reference lifelines in the same container`, node.id));
+        } else if (node.y < target.y + 44 || node.y + node.height > target.y + target.height) {
+          issues.push(issue("warning", "SEQUENCE_OUTSIDE_LIFELINE", `${node.id} extends outside lifeline ${id}`, node.id));
+        }
+      }
+    }
+    if (node.type === "table") {
+      if (node.cells.some((row) => row.length !== node.headers.length)) {
+        issues.push(issue("error", "INVALID_TABLE", `Table ${node.id} rows must match its headers`, node.id));
+      }
+      const occupied = new Set<string>();
+      for (const merge of node.merges) {
+        if (merge.row + merge.rowSpan > node.cells.length + 1 || merge.column + merge.columnSpan > node.headers.length) {
+          issues.push(issue("error", "INVALID_TABLE_MERGE", `Merge in ${node.id} extends outside the table (row 0 is the header)`, node.id));
+          continue;
+        }
+        for (let row = merge.row; row < merge.row + merge.rowSpan; row++) {
+          for (let column = merge.column; column < merge.column + merge.columnSpan; column++) {
+            const key = `${row}:${column}`;
+            if (occupied.has(key)) issues.push(issue("error", "INVALID_TABLE_MERGE", `Merges in ${node.id} overlap`, node.id));
+            occupied.add(key);
+          }
+        }
+      }
+    }
     if (!node.parentId) continue;
     const parent = byId.get(node.parentId);
     if (!parent) {
@@ -166,6 +205,10 @@ export function validateDocument(document: DiagramDocument): Issue[] {
       const a = absoluteBox(document.nodes, left);
       const b = absoluteBox(document.nodes, right);
       const overlap = intersectionArea(a, b);
+      const referencedLines = (node: DiagramNode): string[] => node.type === "message" ? [node.sourceId, node.targetId] : node.type === "activation" ? [node.lifelineId] : node.type === "lifeline" ? [node.id] : [];
+      const leftLines = referencedLines(left);
+      const rightLines = referencedLines(right);
+      if (left.type !== right.type && leftLines.some((id) => rightLines.includes(id))) continue;
       const smaller = Math.min(a.width * a.height, b.width * b.height);
       const ratio = smaller === 0 ? 0 : overlap / smaller;
       if (ratio > 0.15) {

@@ -1,3 +1,5 @@
+import { z } from "zod/v4";
+import { nodeSchema } from "./schema.js";
 import { materializeNode } from "./document.js";
 import { createId } from "./ids.js";
 import type { DiagramNode, FlowchartKind, NodeType } from "./schema.js";
@@ -10,6 +12,9 @@ export interface ComponentDefinition {
   category: ComponentCategory;
   label: string;
   keywords: string[];
+  propertySchema: Record<string, unknown>;
+  requiredFields: string[];
+  example: Record<string, unknown>;
   create: (id?: string) => DiagramNode;
 }
 
@@ -21,7 +26,13 @@ function define(
   keywords: string[],
   partial: Record<string, unknown>,
 ): ComponentDefinition {
+  const schema = nodeSchema.options.find((option) => option.shape.type.value === type)!;
+  const propertySchema = z.toJSONSchema(schema, { io: "input" }) as Record<string, unknown>;
+  const required = (propertySchema.required as string[]).filter((key) => !["id", "type", "x", "y", "width", "height"].includes(key));
+  const referenceExamples: Record<string, unknown> = type === "message" ? { sourceId: "client", targetId: "server" } : type === "activation" ? { lifelineId: "server" } : {};
+  const example = { ...materializeNode({ type, ...partial, ...referenceExamples }, "example") };
   return {
+    propertySchema, requiredFields: required, example,
     id,
     type,
     category,
@@ -49,6 +60,12 @@ export const componentRegistry: ComponentDefinition[] = [
   flowchart("process", "处理", ["process", "处理"]),
   flowchart("decision", "判断", ["decision", "判断"], { width: 160, height: 100 }),
   flowchart("io", "输入输出", ["io", "input", "output", "输入"], { width: 180, height: 72 }),
+  define("sequence.lifeline", "lifeline", "domain", "生命线", ["sequence", "时序图", "参与者"], { text: "参与者" }),
+  define("sequence.message", "message", "domain", "消息", ["sequence", "时序图", "消息"], { sourceId: "client", targetId: "server", text: "请求" }),
+  define("sequence.activation", "activation", "domain", "激活条", ["sequence", "时序图", "激活"], { lifelineId: "server" }),
+  define("domain.table", "table", "domain", "表格", ["table", "表头", "合并", "页表"], {}),
+  define("architecture.layer", "container", "domain", "架构分层", ["architecture", "layer", "分层", "架构"], { title: "架构层", width: 600, height: 240 }),
+  define("basic.callout", "annotation", "basic", "目标标注", ["callout", "标注", "箭头"], { text: "说明" }),
   define("domain.array", "array", "domain", "数组", ["array", "数组"], { items: ["a0", "a1", "a2", "a3"] }),
   define("domain.stack", "stack", "domain", "栈", ["stack", "栈"], { items: ["top", "mid", "bottom"] }),
   define("domain.queue", "queue", "domain", "队列", ["queue", "队列"], { items: ["head", "a", "b", "tail"] }),
@@ -80,3 +97,10 @@ export const stylePresets = {
 } as const;
 
 export type StylePresetName = keyof typeof stylePresets;
+
+export function componentCatalog() {
+  return componentRegistry.map(({ id, type, category, label, keywords, propertySchema, requiredFields, example }) => ({
+    id, type, category, label, scenarios: keywords, propertySchema, requiredFields, example,
+    defaultGeometry: { width: example.width, height: example.height },
+  }));
+}

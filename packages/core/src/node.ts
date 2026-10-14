@@ -1,15 +1,11 @@
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { DrawitError } from "./errors.js";
 import { parseDocument } from "./document.js";
 import type { DiagramDocument } from "./schema.js";
 
-export function drawitHome(): string {
-  if (process.env.DRAWIT_HOME) return resolve(process.env.DRAWIT_HOME);
-  const base = process.env.APPDATA ?? join(homedir(), ".drawit");
-  return join(base, "drawit");
-}
+export { drawitHome } from "./home.js";
+import { drawitHome } from "./home.js";
 
 export function documentsDir(home = drawitHome()): string {
   return join(home, "documents");

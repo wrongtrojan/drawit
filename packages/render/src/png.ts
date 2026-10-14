@@ -1,5 +1,6 @@
 import { validateDocument, type DiagramDocument, type Issue } from "@drawit/core";
 import { Resvg } from "@resvg/resvg-js";
+import { renderEquationSvg } from "./equation.js";
 import { renderDocumentSvg, reviewManifest } from "./svg.js";
 
 export async function svgToPng(svg: string, width: number): Promise<Buffer> {
@@ -15,7 +16,7 @@ export async function renderReviewPng(document: DiagramDocument, options: { maxB
   manifest: ReturnType<typeof reviewManifest> & { warnings: Issue[] };
 }> {
   const warnings = validateDocument(document).filter((issue) => issue.severity !== "error");
-  const svg = renderDocumentSvg(document, { annotateIds: options.annotateIds ?? true, padding: 32, equationMode: "text" });
+  const svg = renderRasterSvg(document, { annotateIds: options.annotateIds ?? true, padding: 32 });
   const match = /width="([0-9.]+)"/.exec(svg);
   const natural = Number(match?.[1] ?? 800);
   let target = Math.min(1600, Math.max(320, natural));
@@ -27,4 +28,8 @@ export async function renderReviewPng(document: DiagramDocument, options: { maxB
     if (target === 320) break;
   }
   return { png, manifest: { ...reviewManifest(document), warnings } };
+}
+
+export function renderRasterSvg(document: DiagramDocument, options: Parameters<typeof renderDocumentSvg>[1] = {}): string {
+  return renderDocumentSvg(document, { ...options, equationRenderer: renderEquationSvg });
 }

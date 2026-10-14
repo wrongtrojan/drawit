@@ -1,4 +1,4 @@
-import { createId, type DiagramDocument, type DiagramEdge, type DiagramNode, type DiagramOperation } from "@drawit/core";
+import { absolutePosition, projectSemanticNode, createId, type DiagramDocument, type DiagramEdge, type DiagramNode, type DiagramOperation } from "@drawit/core";
 import type { Edge, Node } from "@xyflow/react";
 
 export function orderNodes(nodes: DiagramNode[]): DiagramNode[] {
@@ -20,14 +20,14 @@ export function orderNodes(nodes: DiagramNode[]): DiagramNode[] {
 }
 
 export function toFlowNodes(document: DiagramDocument, selection: string[]): Node[] {
-  return orderNodes(document.nodes).map((node) => ({
+  return orderNodes(document.nodes.map((node) => projectSemanticNode(document.nodes, node))).map((node) => ({
     id: node.id,
     type: "drawit",
     position: { x: node.x, y: node.y },
     width: node.width,
     height: node.height,
     parentId: node.parentId,
-    zIndex: node.zIndex ?? 0,
+    zIndex: (node.zIndex ?? 0) * 10 + (node.type === "container" ? 0 : 5),
     selected: selection.includes(node.id),
     data: { diagramNode: node },
     style: { width: node.width, height: node.height },
@@ -35,43 +35,88 @@ export function toFlowNodes(document: DiagramDocument, selection: string[]): Nod
 }
 
 export function toFlowEdges(document: DiagramDocument, selection: string[]): Edge[] {
-  return document.edges.map((edge) => ({
+  const annotations: DiagramEdge[] = document.nodes.flatMap((node) => node.type === "annotation" && node.targetId ? [{ id: `annotation_${node.id}`, source: node.id, target: node.targetId, label: "", router: "straight", arrowStart: false, arrowEnd: true, lineStyle: "dashed" }] : []);
+  const handle = (id: string, otherId: string) => {
+    const node = document.nodes.find((item) => item.id === id)!;
+    const other = document.nodes.find((item) => item.id === otherId)!;
+    const origin = absolutePosition(document.nodes, id);
+    const otherOrigin = absolutePosition(document.nodes, otherId);
+    const dx = otherOrigin.x + other.width / 2 - origin.x - node.width / 2;
+    const dy = otherOrigin.y + other.height / 2 - origin.y - node.height / 2;
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "bottom" : "top";
+  };
+  return [...document.edges, ...annotations].map((edge) => ({
     id: edge.id,
     source: edge.source,
     target: edge.target,
-    sourceHandle: edge.sourceHandle,
-    targetHandle: edge.targetHandle,
+    sourceHandle: edge.sourceHandle ?? handle(edge.source, edge.target),
+    targetHandle: edge.targetHandle ?? handle(edge.target, edge.source),
     label: edge.label || undefined,
     selected: selection.includes(edge.id),
-    type: edge.waypoints && edge.waypoints.length > 0 ? "drawit" : edge.router === "straight" ? "straight" : edge.router === "orthogonal" ? "smoothstep" : "default",
+    type: "drawit",
     animated: false,
-    style: { stroke: edge.color ?? "#334155", strokeWidth: edge.width ?? 1.5 },
-    data: { diagramEdge: edge },
+    zIndex: 2,
+    selectable: !annotations.some((item) => item.id === edge.id),
+    markerEnd: edge.arrowEnd ? { type: "arrowclosed" as never, color: edge.color ?? "#334155" } : undefined,
+    markerStart: edge.arrowStart ? { type: "arrowclosed" as never, color: edge.color ?? "#334155" } : undefined,
+    style: { stroke: edge.color ?? "#334155", strokeWidth: edge.width ?? 1.5, strokeDasharray: edge.lineStyle === "dashed" ? "6 4" : edge.lineStyle === "dotted" ? "1.5 3" : undefined },
+    data: { diagramEdge: { ...edge, sourceHandle: edge.sourceHandle ?? handle(edge.source, edge.target), targetHandle: edge.targetHandle ?? handle(edge.target, edge.source) } },
   }));
 }
 
-export function duplicateElements(document: DiagramDocument, ids: string[]): DiagramOperation[] {
+export function captureElements(document: DiagramDocument, ids: string[]): DiagramDocument {
   const selected = new Set(ids);
-  const nodes = document.nodes.filter((node) => selected.has(node.id));
-  const idMap = new Map(nodes.map((node) => [node.id, createId("n")]));
-  const copies = nodes.map((node) => {
-    const copy = structuredClone(node) as DiagramNode & { id: string };
-    copy.id = idMap.get(node.id) ?? copy.id;
-    copy.x += 24;
-    copy.y += 24;
-    if (copy.parentId && idMap.has(copy.parentId)) copy.parentId = idMap.get(copy.parentId);
-    else delete copy.parentId;
+  for (const edge of document.edges) if (selected.has(edge.id)) { selected.add(edge.source); selected.add(edge.target); }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of document.nodes) {
+      if (node.parentId && selected.has(node.parentId) && !selected.has(node.id)) {
+        selected.add(node.id);
+        changed = true;
+      }
+    }
+  }
+  // Include the lifelines needed to restore semantic references after paste.
+  for (const node of document.nodes.filter((node) => selected.has(node.id))) {
+    if (node.type === "message") { selected.add(node.sourceId); selected.add(node.targetId); }
+    if (node.type === "activation") selected.add(node.lifelineId);
+  }
+  const nodes = document.nodes.filter((node) => selected.has(node.id)).map((node) => {
+    const copy = structuredClone(node);
+    if (copy.parentId && !selected.has(copy.parentId)) {
+      Object.assign(copy, absolutePosition(document.nodes, copy.id));
+      delete copy.parentId;
+    }
+    if (copy.type === "annotation" && copy.targetId && !selected.has(copy.targetId)) delete copy.targetId;
     return copy;
   });
   const edges = document.edges.filter((edge) => selected.has(edge.source) && selected.has(edge.target));
-  const edgeCopies: Array<Omit<DiagramEdge, "id"> & { id?: string }> = edges.map((edge) => ({
-    ...edge,
-    id: createId("e"),
-    source: idMap.get(edge.source) ?? edge.source,
-    target: idMap.get(edge.target) ?? edge.target,
+  return { ...structuredClone(document), nodes, edges: structuredClone(edges) };
+}
+
+export function pasteElements(clipboard: DiagramDocument, offset = 24): DiagramOperation[] {
+  const idMap = new Map(clipboard.nodes.map((node) => [node.id, createId("n")]));
+  const copies = clipboard.nodes.map((node) => {
+    const copy = structuredClone(node);
+    copy.id = idMap.get(node.id)!;
+    if (copy.parentId && idMap.has(copy.parentId)) copy.parentId = idMap.get(copy.parentId);
+    else { delete copy.parentId; copy.x += offset; copy.y += offset; }
+    if (copy.type === "annotation" && copy.targetId) copy.targetId = idMap.get(copy.targetId);
+    if (copy.type === "message") { copy.sourceId = idMap.get(copy.sourceId)!; copy.targetId = idMap.get(copy.targetId)!; }
+    if (copy.type === "activation") copy.lifelineId = idMap.get(copy.lifelineId)!;
+    return copy;
+  });
+  const edges = clipboard.edges.map((edge) => ({
+    ...edge, id: createId("e"), source: idMap.get(edge.source)!, target: idMap.get(edge.target)!,
+    waypoints: edge.waypoints?.map((point) => ({ x: point.x + offset, y: point.y + offset })),
   }));
   const operations: DiagramOperation[] = [];
-  if (copies.length > 0) operations.push({ op: "addNodes", nodes: copies });
-  if (edgeCopies.length > 0) operations.push({ op: "connect", edges: edgeCopies });
+  if (copies.length) operations.push({ op: "addNodes", nodes: copies });
+  if (edges.length) operations.push({ op: "connect", edges });
   return operations;
+}
+
+export function duplicateElements(document: DiagramDocument, ids: string[], offset = 24): DiagramOperation[] {
+  return pasteElements(captureElements(document, ids), offset);
 }

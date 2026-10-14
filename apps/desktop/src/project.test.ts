@@ -25,3 +25,27 @@ describe("editor projection", () => {
     expect(operations[0].nodes[0]?.x).toBe(34);
   });
 });
+
+it("copies group descendants and rewrites internal semantic references", async () => {
+  const { materializeNode, DocumentController } = await import("@drawit/core");
+  const { captureElements, pasteElements } = await import("./project.js");
+  const document = createDocument("分组复制");
+  document.nodes = [
+    materializeNode({ id: "group", type: "container", x: 100, y: 100, width: 600, height: 480 }, "group"),
+    materializeNode({ id: "client", type: "lifeline", parentId: "group", x: 40, y: 40 }, "client"),
+    materializeNode({ id: "server", type: "lifeline", parentId: "group", x: 300, y: 40 }, "server"),
+    materializeNode({ id: "request", type: "message", parentId: "group", sourceId: "client", targetId: "server", y: 120 }, "request"),
+  ];
+  const clipboard = captureElements(document, ["group"]);
+  expect(clipboard.nodes).toHaveLength(4);
+  const controller = new DocumentController(createDocument("粘贴"));
+  const result = await controller.apply({ source: "gui", expectedRevision: 0, operations: pasteElements(clipboard) });
+  expect(result.ok).toBe(true);
+  const pasted = await controller.getSnapshot();
+  expect(pasted.nodes[0]?.x).toBe(124);
+  expect(pasted.nodes[1]?.x).toBe(40);
+  const message = pasted.nodes.find((node) => node.type === "message");
+  if (message?.type !== "message") throw new Error("Missing message");
+  expect(message.sourceId).toBe(pasted.nodes[1]?.id);
+  expect(message.targetId).toBe(pasted.nodes[2]?.id);
+});

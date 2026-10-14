@@ -14,7 +14,8 @@
   "dependencies": {
     "@drawit/core": "workspace:*",
     "@resvg/resvg-js": "^2.6.2",
-    "katex": "^0.16.22"
+    "katex": "^0.16.22",
+    "mathjax-full": "3.2.2"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

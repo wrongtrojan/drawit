@@ -173,6 +173,22 @@ const graphNodeSchema = z.object({
   ...baseFields,
 });
 
+export const tableMergeSchema = z.object({
+  row: z.number().int().nonnegative(), column: z.number().int().nonnegative(),
+  rowSpan: z.number().int().positive(), columnSpan: z.number().int().positive(),
+});
+const tableNodeSchema = z.object({
+  type: z.literal("table"), headers: z.array(z.string()).min(1),
+  cells: z.array(z.array(z.string())).min(1), merges: z.array(tableMergeSchema).default([]),
+  ...baseFields,
+});
+const lifelineNodeSchema = z.object({ type: z.literal("lifeline"), text: z.string().default("参与者"), ...baseFields });
+const messageNodeSchema = z.object({
+  type: z.literal("message"), text: z.string().default("消息"), sourceId: idSchema, targetId: idSchema,
+  messageKind: z.enum(["sync", "async", "return"]).default("sync"), ...baseFields,
+});
+const activationNodeSchema = z.object({ type: z.literal("activation"), lifelineId: idSchema, ...baseFields });
+
 export const nodeSchema = z.discriminatedUnion("type", [
   rectangleNodeSchema,
   roundedRectangleNodeSchema,
@@ -195,6 +211,7 @@ export const nodeSchema = z.discriminatedUnion("type", [
   queueNodeSchema,
   treeNodeSchema,
   graphNodeSchema,
+  tableNodeSchema, lifelineNodeSchema, messageNodeSchema, activationNodeSchema,
 ]);
 export type DiagramNode = z.infer<typeof nodeSchema>;
 export type NodeType = DiagramNode["type"];
@@ -297,7 +314,7 @@ export const NODE_FIELD_KEYS = [
   "vertices",
   "links",
   "directed",
-  "root",
+  "root", "headers", "merges", "sourceId", "messageKind", "lifelineId",
 ] as const;
 
 export const EDGE_FIELD_KEYS = [

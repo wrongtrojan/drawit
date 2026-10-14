@@ -1,13 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
-import { operationSchema } from "@drawit/core";
+import { componentCatalog, operationSchema } from "@drawit/core";
 import { compactResult, invoke } from "./invoke.js";
 import type { SessionResponse } from "@drawit/session/protocol";
 
 const documentId = z.string().describe("Optional document id. Omit to use the diagram open in the editor.");
 const expectedRevision = z.number().int().nonnegative().describe("Revision returned by the latest diagram_get or mutation. The call is rejected when it does not match.");
 
-function text(payload: unknown, isError = false) {
+function text(payload: unknown, isError = typeof payload === "object" && payload !== null && "ok" in payload && payload.ok === false) {
   return { content: [{ type: "text" as const, text: JSON.stringify(payload) }], isError };
 }
 
@@ -20,11 +20,24 @@ function withImage(response: SessionResponse, payload: unknown) {
   return { content, isError: !response.ok };
 }
 
+export const SERVER_INSTRUCTIONS = "Read diagram_get or diagram_get_view before editing to obtain the current revision and object ids. Discover available semantic components and minimal examples with diagram_catalog. Every content mutation must use expectedRevision. A REVISION_CONFLICT or VALIDATION_ERROR leaves the diagram unchanged; reread and retry a local edit. After a batch or layout, call diagram_review_snapshot and inspect the PNG for overlap, clipping, canvas overflow, arrows, and labels. Tool success only means an image was generated, never visual approval. Use object ids from its manifest to patch locally and review again. Call diagram_save before creating or switching documents when dirty is true. diagram_open_editor cannot start the app and EDITOR_NOT_RUNNING changes no diagram.";
+
 export function registerDrawitTools(server: McpServer): void {
+  server.registerTool("diagram_catalog", {
+    description: "Discover semantic node types, scenarios, default geometry, required fields, property schemas and a minimal addNodes example from the shared registry. Message and activation reference existing lifeline ids; table merge row 0 is the header. Does not modify anything.",
+    inputSchema: z.object({}),
+  }, async () => text({ ok: true, components: componentCatalog() }));
+  server.registerTool("diagram_save", {
+    description: 'Save the active diagram without changing geometry or revision. dirty becomes false so you can create or switch documents. Example: {}. Failure leaves content unchanged.',
+    inputSchema: z.object({ documentId: documentId.optional() }),
+  }, async ({ documentId: id }) => {
+    const response = await invoke({ type: "save", documentId: id });
+    return text(compactResult(response), !response.ok);
+  });
   server.registerTool(
     "diagram_create",
     {
-      description: "Create a new drawit diagram and make it the active document. If the editor is running, it switches to this diagram. Does not modify any existing diagram.",
+      description: "Create a new drawit diagram and make it the active document. If the editor is running, it switches to this diagram. Does not modify any existing diagram. Example: {\"title\":\"Architecture\"}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({ title: z.string().min(1).max(200).describe("Diagram title") }),
     },
     async ({ title }) => text(compactResult(await invoke({ type: "create", title, source: "mcp" }), true)),
@@ -65,7 +78,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_open_editor",
     {
-      description: "Focus the running drawit editor on a diagram. Fails with EDITOR_NOT_RUNNING when the desktop app is closed. Does not change object geometry.",
+      description: "Focus the running drawit editor on a diagram. Fails with EDITOR_NOT_RUNNING when the desktop app is closed. Does not change object geometry. Example: {\"documentId\":\"doc_binary_search\"}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({ documentId: documentId.optional() }),
     },
     async ({ documentId: id }) => text(compactResult(await invoke({ type: "open", documentId: id }), true)),
@@ -74,7 +87,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_add_nodes",
     {
-      description: "Add one or more nodes to the active diagram. Requires expectedRevision. Fails with REVISION_CONFLICT if the diagram changed. New nodes need a type; id, position, and size are optional.",
+      description: "Add one or more nodes to the active diagram. Requires expectedRevision. Fails with REVISION_CONFLICT if the diagram changed. New nodes need a type; id, position, and size are optional. Example: {\"expectedRevision\":0,\"nodes\":[{\"id\":\"start\",\"type\":\"flowchart\",\"kind\":\"terminator\",\"text\":\"Start\"}]}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,
@@ -87,7 +100,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_update_nodes",
     {
-      description: "Patch existing nodes by id. Requires expectedRevision. Omitted patch fields stay unchanged. This cannot replace the whole document.",
+      description: "Patch existing nodes by id. Requires expectedRevision. Omitted patch fields stay unchanged. This cannot replace the whole document. Example: {\"expectedRevision\":1,\"updates\":[{\"id\":\"start\",\"patch\":{\"x\":100}}]}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,
@@ -100,7 +113,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_delete_elements",
     {
-      description: "Delete nodes and edges by id. Deleting a node also deletes its descendant nodes and incident edges. Requires expectedRevision. Fails if an id does not exist, and then nothing is deleted.",
+      description: "Delete nodes and edges by id. Deleting a node also deletes its descendant nodes and incident edges. Requires expectedRevision. Fails if an id does not exist, and then nothing is deleted. Example: {\"expectedRevision\":2,\"nodeIds\":[\"start\"]}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,
@@ -114,7 +127,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_connect_nodes",
     {
-      description: "Create or update edges between existing nodes. An edge id that already exists is updated. Requires expectedRevision. Fails when a source or target node does not exist.",
+      description: "Create or update edges between existing nodes. An edge id that already exists is updated. Requires expectedRevision. Fails when a source or target node does not exist. Example: {\"expectedRevision\":1,\"edges\":[{\"source\":\"start\",\"target\":\"work\",\"label\":\"next\"}]}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,
@@ -127,7 +140,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_apply_operations",
     {
-      description: "Apply an ordered batch of addNodes, updateNodes, deleteElements, connect, updateDocument, group, or ungroup operations as one transaction. Requires expectedRevision. If any operation fails, the diagram is left unchanged.",
+      description: "Apply an ordered batch of addNodes, updateNodes, deleteElements, connect, updateDocument, group, ungroup, align, distribute, or snapToGrid operations as one transaction. Requires expectedRevision. If any operation fails, the diagram is left unchanged. Example: {\"expectedRevision\":1,\"operations\":[{\"op\":\"snapToGrid\",\"nodeIds\":[\"start\"]}]}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,
@@ -157,7 +170,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_auto_layout",
     {
-      description: "Run layered layout once. Directions are TB, LR, BT, and RL. Nodes with pinned true keep their coordinates. Requires expectedRevision. Does not run automatically after ordinary edits.",
+      description: "Run layered layout once. Directions are TB, LR, BT, and RL. Nodes with pinned true keep their coordinates. Requires expectedRevision. Does not run automatically after ordinary edits. Example: {\"expectedRevision\":1,\"direction\":\"LR\"}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,
@@ -217,7 +230,7 @@ export function registerDrawitTools(server: McpServer): void {
 }
 
 export function createServer(): McpServer {
-  const server = new McpServer({ name: "drawit", version: "0.1.0" });
+  const server = new McpServer({ name: "drawit", version: "0.1.0" }, { instructions: SERVER_INSTRUCTIONS });
   registerDrawitTools(server);
   return server;
 }

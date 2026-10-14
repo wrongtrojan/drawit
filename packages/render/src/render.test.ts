@@ -19,5 +19,30 @@ describe("renderer", () => {
     expect(review.manifest.revision).toBe(document.revision);
     expect(review.manifest.documentId).toBe(document.documentId);
     expect(review.png.length).toBeGreaterThan(8);
-  });
+  }, 15000);
 });
+
+it("rasterizes fractions as SVG paths while retaining LaTeX in user SVG", async () => {
+  const { createDocument, materializeNode } = await import("@drawit/core");
+  const { renderRasterSvg } = await import("./png.js");
+  const document = createDocument("公式");
+  document.nodes = [materializeNode({ type: "equation", id: "bayes", latex: "P(H|D)=\\frac{P(D|H)P(H)}{P(D)}" }, "bayes")];
+  const raster = renderRasterSvg(document);
+  expect(raster).not.toContain("foreignObject");
+  expect(raster).toContain("<path");
+  expect(raster).toContain("<title>P(H|D)");
+  expect(renderDocumentSvg(document)).toContain("foreignObject");
+  const png = await renderReviewPng(document);
+  expect(png.png.subarray(0, 4).toString("hex")).toBe("89504e47");
+});
+
+it.each(["sequence-short", "sequence-long", "table-short", "table-long", "architecture-short", "architecture-long"])("round trips and reviews the %s semantic fixture", async (name) => {
+  const { readFile } = await import("node:fs/promises");
+  const { parseDocument, validateDocument } = await import("@drawit/core");
+  const document = parseDocument(JSON.parse(await readFile(new URL(`../../../examples/${name}.drawit.json`, import.meta.url), "utf8")));
+  expect(parseDocument(JSON.parse(JSON.stringify(document)))).toEqual(document);
+  expect(validateDocument(document).filter((issue) => issue.severity === "error")).toHaveLength(0);
+  const review = await renderReviewPng(document);
+  expect(review.manifest.objects.map((item) => item.id)).toEqual(expect.arrayContaining(document.nodes.map((item) => item.id)));
+  expect(review.png.length).toBeGreaterThan(100);
+}, 15000);

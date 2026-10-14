@@ -35,6 +35,10 @@ const SIZES: Record<NodeType, { width: number; height: number }> = {
   queue: { width: 300, height: 80 },
   tree: { width: 280, height: 180 },
   graph: { width: 260, height: 200 },
+  table: { width: 360, height: 180 },
+  lifeline: { width: 140, height: 360 },
+  message: { width: 220, height: 36 },
+  activation: { width: 20, height: 100 },
 };
 
 const PLACEHOLDER_PNG =
@@ -49,6 +53,14 @@ function defaultsFor(type: string): Record<string, unknown> {
   const size = SIZES[type as NodeType];
   const common = { x: 80, y: 80, width: size.width, height: size.height, text: "" };
   switch (type) {
+    case "message":
+      return { ...common, y: 160 };
+    case "activation":
+      return { ...common, y: 196 };
+    case "table":
+      return { ...common, headers: ["名称", "值"], cells: [["条目", "内容"]], merges: [] };
+    case "lifeline":
+      return { ...common, text: "参与者" };
     case "polygon":
       return {
         ...common,

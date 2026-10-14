@@ -17,10 +17,10 @@ function crc32(buffer) {
 
 function chunk(type, data) {
   const body = Buffer.concat([Buffer.from(type), data]);
-  const out = Buffer.alloc(8 + body.length + 4);
+  const out = Buffer.alloc(8 + body.length);
   out.writeUInt32BE(data.length, 0);
   body.copy(out, 4);
-  out.writeUInt32BE(crc32(body), 8 + body.length);
+  out.writeUInt32BE(crc32(body), 4 + body.length);
   return out;
 }
 
@@ -69,3 +69,16 @@ const large = png(128);
 writeFileSync(join(root, "32x32.png"), small);
 writeFileSync(join(root, "128x128.png"), large);
 writeFileSync(join(root, "icon.ico"), ico(large, 128));
+
+const retina = png(256);
+writeFileSync(join(root, "128x128@2x.png"), retina);
+const icnsParts = [["icp4", png(16)], ["icp5", small], ["icp6", png(64)], ["ic07", large], ["ic08", retina], ["ic09", png(512)], ["ic10", png(1024)]].map(([type, data]) => {
+  const header = Buffer.alloc(8);
+  header.write(type, 0);
+  header.writeUInt32BE(data.length + 8, 4);
+  return Buffer.concat([header, data]);
+});
+const icnsHeader = Buffer.alloc(8);
+icnsHeader.write("icns", 0);
+icnsHeader.writeUInt32BE(8 + icnsParts.reduce((sum, part) => sum + part.length, 0), 4);
+writeFileSync(join(root, "icon.icns"), Buffer.concat([icnsHeader, ...icnsParts]));

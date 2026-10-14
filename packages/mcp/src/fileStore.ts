@@ -11,27 +11,32 @@ import {
 import { documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile } from "@drawit/core/node";
 import { layoutDocument } from "@drawit/layout";
 import { renderDocumentSvg } from "@drawit/render";
-import { renderReviewPng, svgToPng } from "@drawit/render/png";
+import { renderRasterSvg, renderReviewPng, svgToPng } from "@drawit/render/png";
 import type { SessionResponse } from "@drawit/session/protocol";
 
-const controllers = new Map<string, DocumentController>();
+const activeDocuments = new Map<string, string>();
+const queues = new Map<string, Promise<void>>();
 
 async function load(home: string, documentId?: string): Promise<DocumentController> {
   await mkdir(documentsDir(home), { recursive: true });
-  if (documentId && controllers.has(documentId)) return controllers.get(documentId) as DocumentController;
+  documentId ??= activeDocuments.get(home);
   const files = (await readdir(documentsDir(home))).filter((file) => file.endsWith(".drawit.json"));
   const fileName = documentId ? `${documentId}.drawit.json` : files[0];
   if (!fileName || !files.includes(fileName)) throw new DrawitError("NOT_FOUND", "No diagram is available. Create one or start the editor.");
   const id = fileName.replace(/\.drawit\.json$/, "");
-  const existing = controllers.get(id);
-  if (existing) return existing;
   const path = safeDocumentPath(home, id);
   const controller = new DocumentController(await readDocumentFile(path), path);
-  controllers.set(id, controller);
+  activeDocuments.set(home, id);
   return controller;
 }
 
-export async function callFile(home: string, body: Record<string, unknown>): Promise<SessionResponse> {
+export function callFile(home: string, body: Record<string, unknown>): Promise<SessionResponse> {
+  const response = (queues.get(home) ?? Promise.resolve()).then(() => dispatchFile(home, body));
+  queues.set(home, response.then(() => undefined, () => undefined));
+  return response;
+}
+
+async function dispatchFile(home: string, body: Record<string, unknown>): Promise<SessionResponse> {
   const requestId = String(body.requestId ?? "file");
   try {
     if (body.type === "openEditor" || body.type === "open") {
@@ -41,7 +46,7 @@ export async function callFile(home: string, body: Record<string, unknown>): Pro
       const document = createDocument(typeof body.title === "string" && body.title.trim() ? body.title : "未命名图示");
       const path = safeDocumentPath(home, document.documentId);
       await writeDocumentFile(path, document);
-      controllers.set(document.documentId, new DocumentController(document, path));
+      activeDocuments.set(home, document.documentId);
       return { type: "response", requestId, ok: true, document, revision: document.revision, dirty: false, path };
     }
     if (body.type === "list") {
@@ -57,7 +62,7 @@ export async function callFile(home: string, body: Record<string, unknown>): Pro
       const document = parseDocument(body.json);
       const path = safeDocumentPath(home, document.documentId);
       await writeDocumentFile(path, document);
-      controllers.set(document.documentId, new DocumentController(document, path));
+      activeDocuments.set(home, document.documentId);
       return { type: "response", requestId, ok: true, document, revision: document.revision, path };
     }
     const controller = await load(home, typeof body.documentId === "string" ? body.documentId : undefined);
@@ -80,7 +85,7 @@ export async function callFile(home: string, body: Record<string, unknown>): Pro
     if (body.type === "render" || body.type === "review") {
       const document = await controller.getSnapshot();
       if (body.type === "review" || body.format === "png") {
-        const rendered = body.type === "review" ? await renderReviewPng(document) : { png: await svgToPng(renderDocumentSvg(document, { equationMode: "text", background: typeof body.background === "string" ? body.background : undefined }), 1200), manifest: undefined };
+        const rendered = body.type === "review" ? await renderReviewPng(document, { annotateIds: typeof body.annotateIds === "boolean" ? body.annotateIds : true }) : { png: await svgToPng(renderRasterSvg(document, { background: typeof body.background === "string" ? body.background : undefined }), 1200), manifest: undefined };
         const exportPath = typeof body.fileName === "string" ? safeExportPath(home, body.fileName.endsWith(".png") ? body.fileName : `${body.fileName}.png`) : undefined;
         if (exportPath) {
           await mkdir(exportsDir(home), { recursive: true });
@@ -98,6 +103,7 @@ export async function callFile(home: string, body: Record<string, unknown>): Pro
     }
     if (body.type === "layout") {
       const document = await controller.getSnapshot();
+      if (document.revision !== body.expectedRevision) return { type: "response", requestId, ok: false, code: "REVISION_CONFLICT", message: "Read the current revision before layout", currentRevision: document.revision };
       const laidOut = await layoutDocument(document, { direction: body.direction === "LR" || body.direction === "BT" || body.direction === "RL" ? body.direction : "TB", nodeSpacing: Number(body.nodeSpacing ?? 48), rankSpacing: Number(body.rankSpacing ?? 72) });
       if (laidOut.updates.length === 0) return { type: "response", requestId, ok: true, document, revision: document.revision, bounds: laidOut.bounds };
       const result = await controller.apply({ expectedRevision: Number(body.expectedRevision), source: "mcp", operations: [{ op: "updateNodes", updates: laidOut.updates }] });

@@ -1,10 +1,12 @@
 {
   "mcpServers": {
     "drawit": {
-      "command": "D:\\Scoop\\apps\\nodejs\\current\\node.exe",
+      "command": "pnpm",
       "args": [
-        "D:\\UniversityStudy\\Profession\\ComputerScience\\个人项目\\drawit\\packages\\mcp\\node_modules\\tsx\\dist\\cli.mjs",
-        "D:\\UniversityStudy\\Profession\\ComputerScience\\个人项目\\drawit\\packages\\mcp\\src\\index.ts"
+        "--silent",
+        "--dir",
+        "${workspaceFolder}",
+        "mcp"
       ]
     }
   }

@@ -1,5 +1,4 @@
-import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import { createServer } from "./tools.js";
+import { serveDrawitStdio } from "./stdio.js";
 
 console.error("drawit MCP server listening on stdio");
-void serveStdio(createServer);
+serveDrawitStdio({ onerror: (error) => console.error(error.message) });

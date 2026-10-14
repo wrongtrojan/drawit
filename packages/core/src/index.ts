@@ -4,12 +4,12 @@ export { cloneDocument, createDocument, materializeNode, parseDocument } from ".
 export { DrawitError, asDrawitError, errorCodes } from "./errors.js";
 export type { ErrorCode } from "./errors.js";
 export { createBinarySearchExample } from "./example.js";
-export { absoluteBox, absolutePosition, contentBounds, intersectionArea } from "./geometry.js";
+export { absoluteBox, absolutePosition, contentBounds, intersectionArea, projectSemanticNode } from "./geometry.js";
 export type { Box } from "./geometry.js";
 export { createId } from "./ids.js";
 export { applyOperationsToDraft, emptySummary, operationSchema, summarizeChanges } from "./operations.js";
 export type { ChangeSummary, DiagramOperation, NodePatch } from "./operations.js";
-export { componentById, componentRegistry, searchComponents, stylePresets } from "./registry.js";
+export { componentById, componentCatalog, componentRegistry, searchComponents, stylePresets } from "./registry.js";
 export type { ComponentCategory, ComponentDefinition, StylePresetName } from "./registry.js";
 export {
   SCHEMA_VERSION,
@@ -34,3 +34,5 @@ export type {
 } from "./schema.js";
 export { nodePlainText, validateDocument } from "./validate.js";
 export type { Issue } from "./validate.js";
+
+export { wrapText } from "./text.js";

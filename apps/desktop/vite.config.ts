@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
+import { drawitHome } from "../../packages/core/src/home";
 import { join } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 function sessionEndpoint(): string {
-  const home = process.env.DRAWIT_HOME || join(process.env.APPDATA || "", "drawit");
+  const home = drawitHome();
   try {
     return readFileSync(join(home, "session.json"), "utf8");
   } catch {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Background,
   ConnectionMode,
@@ -14,8 +14,10 @@ import {
 } from "@xyflow/react";
 import type { DiagramDocument } from "@drawit/core";
 import { toFlowEdges, toFlowNodes } from "./project.js";
+import { ShapeEdge } from "./ShapeEdge.js";
 import { ShapeNode } from "./ShapeNode.js";
 
+const edgeTypes = { drawit: ShapeEdge };
 const nodeTypes = { drawit: ShapeNode };
 
 interface CanvasProps {
@@ -69,15 +71,16 @@ export function Canvas({ document, selection, onMove, onResize, onConnect, onSel
     }
   };
 
-  const onSelect = ({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
+  const onSelect = useCallback(({ nodes: selectedNodes, edges: selectedEdges }: OnSelectionChangeParams) => {
     onSelection([...selectedNodes.map((node) => node.id), ...selectedEdges.map((edge) => edge.id)]);
-  };
+  }, [onSelection]);
 
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       onNodesChange={onNodesChange}
       onEdgesChange={(changes) => setEdges((current) => applyEdgeChanges(changes, current))}
       onConnect={onConnect}
@@ -87,8 +90,9 @@ export function Canvas({ document, selection, onMove, onResize, onConnect, onSel
       fitView
       selectionOnDrag
       panOnDrag={[1, 2]}
-      multiSelectionKeyCode="Control"
+      multiSelectionKeyCode={["Control", "Meta"]}
       deleteKeyCode={null}
+      disableKeyboardA11y
       proOptions={{ hideAttribution: true }}
     >
       <Background gap={document.canvas.gridSize ?? 20} />

@@ -1,3 +1,4 @@
+import { watch } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -16,7 +17,7 @@ import {
 import { documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile } from "@drawit/core/node";
 import { layoutDocument } from "@drawit/layout";
 import { renderDocumentSvg } from "@drawit/render";
-import { renderReviewPng, svgToPng } from "@drawit/render/png";
+import { renderRasterSvg, renderReviewPng, svgToPng } from "@drawit/render/png";
 import type { ClientMessage, SessionEvent, SessionResponse, ViewState } from "./protocol.js";
 
 function pidAlive(pid: number): boolean {
@@ -69,7 +70,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
 
   const token = randomBytes(32).toString("hex");
   const server = new WebSocketServer({ host: "127.0.0.1", port: options.port ?? 0 });
-  await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+  await new Promise<void>((resolve, reject) => { server.once("listening", resolve); server.once("error", reject); });
   const address = server.address();
   const port = typeof address === "object" && address ? address.port : 0;
   await writeFile(sessionFile, JSON.stringify({ port, token, pid: process.pid }, null, 2));
@@ -89,6 +90,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
 
   const view: ViewState = { selection: [], viewport: { x: 0, y: 0, zoom: 1 } };
   const sockets = new Set<WebSocket>();
+  const allSockets = new Set<WebSocket>();
   const send = (socket: WebSocket, payload: SessionResponse | SessionEvent) => {
     if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(payload));
   };
@@ -100,7 +102,10 @@ export async function startSessionHost(options: { home: string; port?: number; r
     return { canUndo: history.undo, canRedo: history.redo };
   };
 
+  let savedDocumentJson = JSON.stringify(await controller.getSnapshot());
   controller.subscribe((document, record, dirty) => {
+    view.selection = view.selection.filter((id) => document.nodes.some((node) => node.id === id) || document.edges.some((edge) => edge.id === id));
+    if (!dirty) savedDocumentJson = JSON.stringify(document);
     broadcast({
       type: "event",
       event: "revision",
@@ -136,8 +141,9 @@ export async function startSessionHost(options: { home: string; port?: number; r
   };
 
   server.on("connection", (socket) => {
-    sockets.add(socket);
-    socket.on("close", () => sockets.delete(socket));
+    // Only authenticated clients receive document broadcasts.
+    allSockets.add(socket);
+    socket.on("close", () => { sockets.delete(socket); allSockets.delete(socket); });
     socket.on("message", (data) => {
       void handle(socket, data.toString()).catch((error) => {
         console.error(error instanceof Error ? error.message : "session request failed");
@@ -158,11 +164,37 @@ export async function startSessionHost(options: { home: string; port?: number; r
       return;
     }
     try {
-      send(socket, await dispatch(message));
+      sockets.add(socket);
+      send(socket, await enqueueDispatch(message));
     } catch (error) {
       send(socket, fail(message.requestId, error));
     }
   }
+
+  // Serialize complete requests, including save IO and document switches.
+  // The controller retains its own single-writer queue for content operations.
+  let requestTail: Promise<void> = Promise.resolve();
+  function enqueueDispatch(message: ClientMessage): Promise<SessionResponse> {
+    const response = requestTail.then(() => dispatch(message));
+    requestTail = response.then(() => undefined, () => undefined);
+    return response;
+  }
+
+  let closed = false;
+  const watcher = watch(documentsDir(options.home), (_event, fileName) => {
+    if (closed) return;
+    const check = requestTail.then(async () => {
+      if (closed) return;
+      const current = await controller.getSnapshot();
+      if (String(fileName) !== `${current.documentId}.drawit.json`) return;
+      try {
+        const disk = await readDocumentFile(safeDocumentPath(options.home, current.documentId));
+        if (JSON.stringify(disk) === savedDocumentJson) return;
+      } catch { /* Deleted or invalid external file also needs attention. */ }
+      broadcast({ type: "event", event: "externalChange", path: controller.path });
+    });
+    requestTail = check.catch((error) => console.error(String(error)));
+  });
 
   async function ensureDocument(documentId?: string): Promise<void> {
     if (!documentId) return;
@@ -213,11 +245,24 @@ export async function startSessionHost(options: { home: string; port?: number; r
         const result = await controller.replace(document, path, message.source ?? "gui");
         return { type: "response", requestId: message.requestId, ok: true, document: result.document, revision: result.revision, dirty: false, path, ...historyFlags() };
       }
+      case "reload": {
+        const current = await controller.getSnapshot();
+        const path = safeDocumentPath(options.home, current.documentId);
+        const document = await readDocumentFile(path);
+        if (document.documentId !== current.documentId) throw new DrawitError("VALIDATION_ERROR", "External file changed the document id");
+        document.revision = Math.max(current.revision, document.revision) + 1;
+        await writeDocumentFile(path, document);
+        await controller.replace(document, path, message.source ?? "gui");
+        view.selection = [];
+        return snapshotResponse(message.requestId);
+      }
       case "save": {
+        await ensureDocument(message.documentId);
         const document = await controller.getSnapshot();
         const path = controller.path ?? safeDocumentPath(options.home, document.documentId);
         await writeDocumentFile(path, document);
         await controller.markSaved(path);
+        savedDocumentJson = JSON.stringify(document);
         broadcast({ type: "event", event: "saved", document, dirty: false, path, warnings: validateDocument(document).filter((issue) => issue.severity !== "error"), ...historyFlags() });
         return { type: "response", requestId: message.requestId, ok: true, document, revision: document.revision, dirty: false, path };
       }
@@ -264,6 +309,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
     if (message.type === "layout") {
       if (message.expectedRevision === undefined) throw new DrawitError("VALIDATION_ERROR", "expectedRevision is required");
       const document = await controller.getSnapshot();
+      if (document.revision !== message.expectedRevision) return { type: "response", requestId: message.requestId, ok: false, code: "REVISION_CONFLICT", message: "Read the current revision before layout", currentRevision: document.revision };
       const laidOut = await layoutDocument(document, {
         direction: message.direction ?? document.layout?.direction ?? "TB",
         nodeSpacing: message.nodeSpacing ?? document.layout?.nodeSpacing ?? 48,
@@ -314,7 +360,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
     await ensureDocument(message.documentId);
     const document = await controller.getSnapshot();
     const background = message.background;
-    const svg = renderDocumentSvg(document, { background, equationMode: message.format === "png" ? "text" : "html", padding: 24 });
+    const svg = message.format === "svg" ? renderDocumentSvg(document, { background, padding: 24 }) : renderRasterSvg(document, { background, padding: 24 });
     if (message.format === "svg") {
       const exportPath = message.fileName ? safeExportPath(options.home, message.fileName.endsWith(".svg") ? message.fileName : `${message.fileName}.svg`) : undefined;
       if (exportPath) await writeFile(exportPath, svg);
@@ -349,7 +395,9 @@ export async function startSessionHost(options: { home: string; port?: number; r
     home: options.home,
     close: () =>
       new Promise((resolve) => {
-        for (const socket of sockets) socket.close();
+        closed = true;
+        watcher.close();
+        for (const socket of allSockets) socket.terminate();
         server.close(() => {
           void rm(sessionFile, { force: true }).finally(() => resolve());
         });

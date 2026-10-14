@@ -71,7 +71,7 @@ export interface SessionResponse {
 
 export interface SessionEvent {
   type: "event";
-  event: "revision" | "view" | "saved";
+  event: "revision" | "view" | "saved" | "externalChange";
   document?: DiagramDocument;
   record?: OperationRecord | null;
   warnings?: Issue[];

@@ -26,12 +26,13 @@ export async function callSession(body: Record<string, unknown>, home = drawitHo
   return new Promise((resolve) => {
     const socket = new WebSocket(`ws://127.0.0.1:${hello.port}`);
     const timer = setTimeout(() => {
-      socket.close();
-      resolve(null);
+      socket.terminate();
+      resolve({ type: "response", requestId, ok: false, code: "TRANSACTION_FAILED", message: "The running editor session is unavailable. Retry after reconnecting; its file was not modified." });
     }, 15000);
     socket.on("error", () => {
+      socket.terminate();
       clearTimeout(timer);
-      resolve(null);
+      resolve({ type: "response", requestId, ok: false, code: "TRANSACTION_FAILED", message: "The running editor session is unavailable. Retry after reconnecting; its file was not modified." });
     });
     socket.on("open", () => socket.send(JSON.stringify({ ...body, requestId, token: hello.token })));
     socket.on("message", (data) => {

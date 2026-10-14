@@ -27,13 +27,14 @@ function call(socket: WebSocket, message: Record<string, unknown>): Promise<Sess
     const onMessage = (data: WebSocket.RawData) => {
       const parsed = JSON.parse(data.toString()) as SessionResponse | SessionEvent;
       if (parsed.type === "response" && parsed.requestId === requestId) {
+        clearTimeout(timer);
         socket.off("message", onMessage);
         resolve(parsed);
       }
     };
     socket.on("message", onMessage);
     socket.send(JSON.stringify({ ...message, requestId, token: socket.token }));
-    setTimeout(() => reject(new Error("timeout")), 8000);
+    const timer = setTimeout(() => { socket.off("message", onMessage); reject(new Error("timeout")); }, 8000);
   });
 }
 
@@ -48,6 +49,7 @@ describe("session host", () => {
       const parsed = JSON.parse(data.toString()) as SessionEvent;
       if (parsed.type === "event" && parsed.event === "revision") seen.push(parsed);
     });
+    await call(gui, { type: "subscribe" });
     const created = await call(agent, { type: "create", title: "同步测试", source: "mcp" });
     expect(created.ok).toBe(true);
     const added = await call(agent, {
@@ -88,5 +90,47 @@ describe("session host", () => {
     gui.close();
     agent.close();
     await host.close();
+  });
+});
+
+describe("session persistence", () => {
+  it("requires save before switching and reopens stable ids without changing revision on save", async () => {
+    const home = await mkdtemp(join(tmpdir(), "drawit-save-"));
+    const host = await startSessionHost({ home });
+    const socket = await connect(host.port, host.token);
+    try {
+      const created = await call(socket, { type: "create", title: "保存回归" });
+      const added = await call(socket, { type: "apply", expectedRevision: 0, operations: [{ op: "addNodes", nodes: [{ id: "stable", type: "table", headers: ["字段", "值"], cells: [["页号", "0x1"]] }] }] });
+      expect(added.dirty).toBe(true);
+      expect(await call(socket, { type: "create", title: "不应创建" })).toMatchObject({ ok: false, code: "TRANSACTION_FAILED" });
+      const saved = await call(socket, { type: "save" });
+      expect(saved).toMatchObject({ dirty: false, revision: 1 });
+      await call(socket, { type: "create", title: "第二份" });
+      const opened = await call(socket, { type: "open", documentId: created.document?.documentId });
+      expect(opened.document?.nodes).toEqual(added.document?.nodes);
+      expect(opened.revision).toBe(1);
+    } finally { socket.terminate(); await host.close(); }
+  });
+
+  it("notifies about external files without replacing dirty memory until explicit reload", async () => {
+    const { writeFile } = await import("node:fs/promises");
+    const home = await mkdtemp(join(tmpdir(), "drawit-external-"));
+    const host = await startSessionHost({ home });
+    const socket = await connect(host.port, host.token);
+    try {
+      const initial = await call(socket, { type: "subscribe" });
+      await call(socket, { type: "apply", expectedRevision: initial.revision, operations: [{ op: "updateDocument", patch: { title: "内存修改" } }] });
+      const changed = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("No external file notification")), 3000);
+        socket.on("message", (data) => { const event = JSON.parse(String(data)); if (event.event === "externalChange") { clearTimeout(timer); resolve(); } });
+      });
+      const external = { ...initial.document!, title: "外部修改" };
+      await writeFile(initial.path!, JSON.stringify(external));
+      await changed;
+      expect((await call(socket, { type: "get" })).document?.title).toBe("内存修改");
+      const reloaded = await call(socket, { type: "reload", source: "gui" });
+      expect(reloaded.document?.title).toBe("外部修改");
+      expect(reloaded).toMatchObject({ revision: 2, dirty: false });
+    } finally { socket.terminate(); await host.close(); }
   });
 });

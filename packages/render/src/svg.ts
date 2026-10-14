@@ -1,8 +1,10 @@
 import {
   absoluteBox,
+  projectSemanticNode,
   absolutePosition,
   contentBounds,
   nodePlainText,
+  wrapText,
   type DiagramDocument,
   type DiagramEdge,
   type DiagramNode,
@@ -16,6 +18,7 @@ export interface RenderOptions {
   padding?: number;
   annotateIds?: boolean;
   equationMode?: "html" | "text";
+  equationRenderer?: (node: Extract<DiagramNode, { type: "equation" }>) => string;
 }
 
 export function escapeXml(value: string): string {
@@ -31,28 +34,8 @@ function fontSize(node: DiagramNode): number {
   return node.style?.fontSize ?? 14;
 }
 
-function wrap(text: string, size: number, width: number): string[] {
-  const max = Math.max(1, Math.floor(width / Math.max(1, size * 0.56)));
-  const lines: string[] = [];
-  for (const paragraph of text.split(/\r?\n/)) {
-    let rest = paragraph;
-    if (!rest) {
-      lines.push("");
-      continue;
-    }
-    while (rest.length > max) {
-      let at = rest.lastIndexOf(" ", max);
-      if (at <= 0) at = max;
-      lines.push(rest.slice(0, at).trimEnd());
-      rest = rest.slice(at).trimStart();
-    }
-    lines.push(rest);
-  }
-  return lines.length > 0 ? lines : [""];
-}
-
 function textBlock(text: string, x: number, y: number, width: number, height: number, size: number, fill: string, family: string): string {
-  const lines = wrap(text, size, Math.max(8, width));
+  const lines = wrapText(text, size, Math.max(8, width));
   const block = lines.length * size * 1.25;
   let cursor = y + Math.max(size, (height - block) / 2 + size);
   return lines
@@ -75,6 +58,20 @@ export function renderKatexHtml(latex: string): string {
 function localShape(node: DiagramNode, fill: string, stroke: string, strokeWidth: number): string {
   const { width, height } = node;
   switch (node.type) {
+    case "lifeline":
+      return `<rect x="1" y="1" width="${width - 2}" height="42" rx="4" fill="${fill}" stroke="${stroke}"/><line x1="${width / 2}" y1="44" x2="${width / 2}" y2="${height}" stroke="${stroke}" stroke-dasharray="6 4"/>`;
+    case "message": {
+      const reverse = node.meta?.renderReverse;
+      const start = reverse ? width : 0;
+      const end = reverse ? 0 : width;
+      const arrow = node.messageKind === "async" ? "fill=\"none\"" : `fill="${stroke}"`;
+      if (node.meta?.renderSelf) return `<path d="M0 20 H${width} V${height - 2} H0" fill="none" stroke="${stroke}"/><path d="M8 ${height - 6} L0 ${height - 2} L8 ${height + 2}" fill="none" stroke="${stroke}"/>`;
+      return `<line x1="${start}" y1="${height - 4}" x2="${end}" y2="${height - 4}" stroke="${stroke}" ${node.messageKind === "return" ? 'stroke-dasharray="5 4"' : ""}/><path d="M${end + (reverse ? 9 : -9)} ${height - 8} L${end} ${height - 4} L${end + (reverse ? 9 : -9)} ${height}" ${arrow} stroke="${stroke}"/>`;
+    }
+    case "activation":
+      return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" fill="${fill}" stroke="${stroke}"/>`;
+    case "table":
+      return "";
     case "roundedRectangle":
       return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="${node.style?.cornerRadius ?? 12}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
     case "ellipse":
@@ -213,6 +210,19 @@ function graphBody(node: Extract<DiagramNode, { type: "graph" }>, textColor: str
   return parts.join("");
 }
 
+function tableBody(node: Extract<DiagramNode, { type: "table" }>, fill: string, stroke: string, textColor: string, family: string): string {
+  const rows = [node.headers, ...node.cells];
+  const cellW = node.width / node.headers.length;
+  const cellH = node.height / rows.length;
+  return rows.flatMap((row, r) => row.map((value, c) => {
+    const merge = node.merges.find((m) => r >= m.row && r < m.row + m.rowSpan && c >= m.column && c < m.column + m.columnSpan);
+    if (merge && (merge.row !== r || merge.column !== c)) return "";
+    const w = cellW * (merge?.columnSpan ?? 1);
+    const h = cellH * (merge?.rowSpan ?? 1);
+    return `<rect x="${c * cellW}" y="${r * cellH}" width="${w}" height="${h}" fill="${r === 0 ? "#e2e8f0" : fill}" stroke="${stroke}"/>` + textBlock(value, c * cellW + 6, r * cellH + 4, w - 12, h - 8, fontSize(node), textColor, family);
+  })).join("");
+}
+
 export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}): string {
   const fill = color(node.style?.fill, node.type === "container" ? "#f8fafc" : node.type === "text" ? "transparent" : "#ffffff");
   const stroke = color(node.style?.stroke, "#1f2937");
@@ -223,12 +233,22 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
   if (node.type === "image" && node.src.startsWith("data:image/")) {
     parts.push(`<image href="${escapeXml(node.src)}" x="0" y="0" width="${node.width}" height="${node.height}"/>`);
   } else if (node.type === "equation") {
-    if (options.equationMode === "text") {
+    if (options.equationRenderer) {
+      parts.push(options.equationRenderer(node));
+    } else if (options.equationMode === "text") {
       parts.push(textBlock(node.latex, 8, 8, node.width - 16, node.height - 16, fontSize(node), textColor, family));
     } else {
       const html = renderKatexHtml(node.latex);
       parts.push(`<foreignObject x="8" y="8" width="${Math.max(1, node.width - 16)}" height="${Math.max(1, node.height - 16)}"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;height:100%;font-size:${fontSize(node)}px;">${html}</div></foreignObject>`);
     }
+  } else if (node.type === "table") {
+    parts.push(tableBody(node, fill, stroke, textColor, family));
+  } else if (node.type === "lifeline") {
+    parts.push(textBlock(node.text, 6, 4, node.width - 12, 34, fontSize(node), textColor, family));
+  } else if (node.type === "message") {
+    parts.push(textBlock(node.text, 4, 0, node.width - 8, node.height - 8, fontSize(node), textColor, family));
+  } else if (node.type === "activation") {
+    // An activation has no textual body.
   } else if (node.type === "matrix") {
     parts.push(matrixBody(node, textColor, family));
   } else if (node.type === "vector") {
@@ -263,7 +283,7 @@ function handlePoint(node: DiagramNode, handle: HandleSide | undefined, other: {
   return { x: box.width, y: box.height / 2 };
 }
 
-function edgePath(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, sourceSide: HandleSide | undefined, targetSide: HandleSide | undefined): string {
+export function renderEdgePath(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, sourceSide: HandleSide | undefined, targetSide: HandleSide | undefined): string {
   if (edge.waypoints && edge.waypoints.length > 0) {
     const points = [source, ...edge.waypoints, target];
     return `M ${points.map((point) => `${point.x} ${point.y}`).join(" L ")}`;
@@ -288,71 +308,83 @@ function edgePath(edge: DiagramEdge, source: { x: number; y: number }, target: {
   return `M ${source.x} ${source.y} L ${source.x} ${midY} L ${target.x} ${midY} L ${target.x} ${target.y}`;
 }
 
+export function renderEdgeSvg(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, options: { markerId: string; family?: string; defaultColor?: string; interactive?: boolean }): string {
+  const stroke = color(edge.color, options.defaultColor ?? "#334155");
+  const markerId = escapeXml(options.markerId);
+  const path = renderEdgePath(edge, source, target, edge.sourceHandle, edge.targetHandle);
+  const dash = edge.lineStyle === "dashed" ? "6 4" : edge.lineStyle === "dotted" ? "1.5 3" : "";
+  const markers = `<defs><marker id="${markerId}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto-start-reverse"><path d="M0 0 L10 4 L0 8 Z" fill="${stroke}"/></marker></defs>`;
+  const markerEnd = edge.arrowEnd ? ` marker-end="url(#${markerId})"` : "";
+  const markerStart = edge.arrowStart ? ` marker-start="url(#${markerId})"` : "";
+  const label = edge.label ? `<text x="${(source.x + target.x) / 2}" y="${(source.y + target.y) / 2 - 6}" text-anchor="middle" font-size="12" font-family="${escapeXml(options.family ?? "Segoe UI, sans-serif")}" fill="${stroke}">${escapeXml(edge.label)}</text>` : "";
+  const interaction = options.interactive ? `<path d="${path}" fill="none" stroke="transparent" stroke-width="20" class="react-flow__edge-interaction"/>` : "";
+  return `${markers}<path d="${path}" class="react-flow__edge-path" style="fill:none;stroke:${stroke};stroke-width:${edge.width ?? 1.5};stroke-dasharray:${dash || "none"}" fill="none" stroke="${stroke}" stroke-width="${edge.width ?? 1.5}"${dash ? ` stroke-dasharray="${dash}"` : ""}${markerEnd}${markerStart}/>${interaction}${label}`;
+}
+
 export function renderDocumentSvg(document: DiagramDocument, options: RenderOptions = {}): string {
   const padding = options.padding ?? 24;
-  const bounds = contentBounds(document.nodes, document.canvas);
+  const bounds = contentBounds(document.nodes.map((node) => projectSemanticNode(document.nodes, node)), document.canvas);
   const background = color(options.background ?? document.canvas.background, "#ffffff");
   const family = document.styles?.fontFamily ?? "Segoe UI, sans-serif";
   const edgeColor = color(document.styles?.edgeColor, "#334155");
-  const markers = document.edges
-    .map((edge, index) => {
-      const stroke = color(edge.color, edgeColor);
-      return `<marker id="m${index}" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 Z" fill="${stroke}"/></marker>`;
-    })
-    .join("");
-  const nodes = [...document.nodes].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
-  const nodeMarkup = nodes
-    .map((node) => {
-      const origin = absolutePosition(document.nodes, node.id);
-      return `<g transform="translate(${origin.x - bounds.x + padding} ${origin.y - bounds.y + padding})">${renderNodeInner(node, options)}</g>`;
-    })
-    .join("");
+  const projected = document.nodes.map((node) => projectSemanticNode(document.nodes, node));
+  const nodes = [...projected].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
+  const markupFor = (node: DiagramNode) => {
+    const origin = absolutePosition(projected, node.id);
+    return `<g transform="translate(${origin.x - bounds.x + padding} ${origin.y - bounds.y + padding})">${renderNodeInner(node, options)}</g>`;
+  };
+  const containers = nodes.filter((node) => node.type === "container");
+  const depth = (node: DiagramNode) => {
+    let count = 0; let current = node;
+    while (current.parentId && count < nodes.length) { current = nodes.find((item) => item.id === current.parentId)!; if (!current) break; count++; }
+    return count;
+  };
+  const containerMarkup = containers.sort((a, b) => depth(a) - depth(b)).map(markupFor).join("");
+  const nodeMarkup = nodes.filter((node) => node.type !== "container").map(markupFor).join("");
   const labels = options.annotateIds
     ? nodes
         .map((node) => {
-          const origin = absolutePosition(document.nodes, node.id);
+          const origin = absolutePosition(projected, node.id);
           return `<text x="${origin.x - bounds.x + padding}" y="${origin.y - bounds.y + padding - 4}" font-size="10" fill="#64748b">${escapeXml(node.id)}</text>`;
         })
         .join("")
     : "";
-  const edges = document.edges
+  const annotationEdges: DiagramEdge[] = document.nodes.flatMap((node) => node.type === "annotation" && node.targetId ? [{
+    id: `annotation_${node.id}`, source: node.id, target: node.targetId, label: "", router: "straight" as const, arrowStart: false, arrowEnd: true, lineStyle: "dashed" as const,
+  }] : []);
+  const edges = [...document.edges, ...annotationEdges]
     .map((edge, index) => {
-      const sourceNode = document.nodes.find((node) => node.id === edge.source);
-      const targetNode = document.nodes.find((node) => node.id === edge.target);
+      const sourceNode = projected.find((node) => node.id === edge.source);
+      const targetNode = projected.find((node) => node.id === edge.target);
       if (!sourceNode || !targetNode) return "";
-      const sourceOrigin = absolutePosition(document.nodes, sourceNode.id);
-      const targetOrigin = absolutePosition(document.nodes, targetNode.id);
+      const sourceOrigin = absolutePosition(projected, sourceNode.id);
+      const targetOrigin = absolutePosition(projected, targetNode.id);
       const sourceAbs = { x: sourceOrigin.x + sourceNode.width / 2, y: sourceOrigin.y + sourceNode.height / 2 };
       const targetAbs = { x: targetOrigin.x + targetNode.width / 2, y: targetOrigin.y + targetNode.height / 2 };
       const sourceLocal = handlePoint(sourceNode, edge.sourceHandle, { x: targetAbs.x - sourceOrigin.x, y: targetAbs.y - sourceOrigin.y });
       const targetLocal = handlePoint(targetNode, edge.targetHandle, { x: sourceAbs.x - targetOrigin.x, y: sourceAbs.y - targetOrigin.y });
       const source = { x: sourceOrigin.x + sourceLocal.x - bounds.x + padding, y: sourceOrigin.y + sourceLocal.y - bounds.y + padding };
       const target = { x: targetOrigin.x + targetLocal.x - bounds.x + padding, y: targetOrigin.y + targetLocal.y - bounds.y + padding };
-      const stroke = color(edge.color, edgeColor);
-      const dash = edge.lineStyle === "dashed" ? "6 4" : edge.lineStyle === "dotted" ? "1.5 3" : "";
-      const path = edgePath(edge, source, target, edge.sourceHandle, edge.targetHandle);
-      const markerEnd = edge.arrowEnd ? ` marker-end="url(#m${index})"` : "";
-      const markerStart = edge.arrowStart ? ` marker-start="url(#m${index})"` : "";
-      const label = edge.label
-        ? `<text x="${(source.x + target.x) / 2}" y="${(source.y + target.y) / 2 - 6}" text-anchor="middle" font-size="12" font-family="${escapeXml(family)}" fill="${stroke}">${escapeXml(edge.label)}</text>`
-        : "";
-      return `<path d="${path}" fill="none" stroke="${stroke}" stroke-width="${edge.width ?? 1.5}"${dash ? ` stroke-dasharray="${dash}"` : ""}${markerEnd}${markerStart}/>${label}`;
+      const side = (point: { x: number; y: number }, node: DiagramNode): HandleSide => point.x === 0 ? "left" : point.x === node.width ? "right" : point.y === 0 ? "top" : "bottom";
+      const translated = { ...edge, sourceHandle: edge.sourceHandle ?? side(sourceLocal, sourceNode), targetHandle: edge.targetHandle ?? side(targetLocal, targetNode), waypoints: edge.waypoints?.map((point) => ({ x: point.x - bounds.x + padding, y: point.y - bounds.y + padding })) };
+      return renderEdgeSvg(translated, source, target, { markerId: `m${index}`, family, defaultColor: edgeColor });
     })
     .join("");
   const width = bounds.width + padding * 2;
   const height = bounds.height + padding * 2;
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs>${markers}<marker id="graph-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#334155"/></marker></defs><rect width="100%" height="100%" fill="${background}"/>${edges}${nodeMarkup}${labels}</svg>`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><marker id="graph-arrow" markerWidth="8" markerHeight="8" refX="8" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="#334155"/></marker></defs><rect width="100%" height="100%" fill="${background}"/>${containerMarkup}${edges}${nodeMarkup}${labels}</svg>`;
 }
 
 export function reviewManifest(document: DiagramDocument) {
-  const bounds = contentBounds(document.nodes, document.canvas);
+  const projected = document.nodes.map((node) => projectSemanticNode(document.nodes, node));
+  const bounds = contentBounds(document.nodes.map((node) => projectSemanticNode(document.nodes, node)), document.canvas);
   return {
     documentId: document.documentId,
     revision: document.revision,
     bounds,
     objects: [
-      ...document.nodes.map((node) => {
-        const box = absoluteBox(document.nodes, node);
+      ...projected.map((node) => {
+        const box = absoluteBox(projected, node);
         return { id: node.id, kind: "node" as const, type: node.type, ...box };
       }),
       ...document.edges.map((edge) => ({ id: edge.id, kind: "edge" as const, type: edge.router, x: 0, y: 0, width: 0, height: 0 })),

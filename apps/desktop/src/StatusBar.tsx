@@ -9,9 +9,10 @@ interface StatusBarProps {
   message: string;
   open: boolean;
   onToggle: () => void;
+  onCopyConfig: () => void;
 }
 
-export function StatusBar({ connected, revision, dirty, warnings, records, message, open, onToggle }: StatusBarProps) {
+export function StatusBar({ connected, revision, dirty, warnings, records, message, open, onToggle, onCopyConfig }: StatusBarProps) {
   return (
     <>
       {open ? (
@@ -28,6 +29,7 @@ export function StatusBar({ connected, revision, dirty, warnings, records, messa
       ) : null}
       <footer className="status">
         <span>{connected ? "MCP 会话已连接" : "正在连接会话"}</span>
+        <button onClick={onCopyConfig}>复制 MCP 配置</button>
         <span>版本 {revision}</span>
         <span>{dirty ? "未保存" : "已保存"}</span>
         <button type="button" onClick={onToggle}>{warnings.length} 条提示</button>

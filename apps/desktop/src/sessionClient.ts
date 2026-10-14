@@ -4,6 +4,7 @@ export class EditorSocket {
   private socket: WebSocket | null = null;
   private pending = new Map<string, (value: SessionResponse) => void>();
   private token = "";
+  onDisconnect: (() => void) | null = null;
   onEvent: ((event: SessionEvent) => void) | null = null;
 
   get connected(): boolean {
@@ -27,7 +28,12 @@ export class EditorSocket {
         }
       };
       socket.onclose = () => {
-        if (this.socket === socket) this.socket = null;
+        if (this.socket === socket) {
+          this.socket = null;
+          for (const [requestId, resolve] of this.pending) resolve({ type: "response", requestId, ok: false, code: "TRANSACTION_FAILED", message: "本机会话已断开" });
+          this.pending.clear();
+          this.onDisconnect?.();
+        }
       };
       this.socket = socket;
     });
