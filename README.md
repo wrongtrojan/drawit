@@ -1,8 +1,15 @@
 # drawit
 
-drawit 在本机画技术图。你在窗口里改，Agent 通过 MCP 改同一张图。改动带版本号，避免互相覆盖。Agent 改完可以取回一张 PNG，自己看间距、重叠和文字是否合适。
+drawit 是本地技术图示编辑器。窗口里的修改，和 Agent 通过 MCP 做的修改，写进同一份文档；每次提交带版本号。图保存在本机。
 
-图存在本机，没有账号，也不上传。
+## 文档
+
+| 文档 | 读者 | 内容 |
+| --- | --- | --- |
+| [docs/guide.md](docs/guide.md) | 使用界面的人 | 绘图、快捷键、保存，以及怎样把图交给 Agent |
+| [docs/mcp.md](docs/mcp.md) | 接入 Agent 的人 | MCP 配置、调用顺序和工具 |
+| [docs/maintenance.md](docs/maintenance.md) | 修改代码的人 | 架构、检查和打包 |
+| [docs/scenarios.md](docs/scenarios.md) | 做绘图回归的人 | 交给 Agent 的固定提示词 |
 
 ## 能画什么
 
@@ -15,17 +22,17 @@ drawit 在本机画技术图。你在窗口里改，Agent 通过 MCP 改同一�
 - 分层容器，和指向某个对象的标注箭头
 - 直线、折线、曲线和贝塞尔连线
 
-可以撤销、重做、组合、对齐、分布、吸附到网格和自动布局。可以保存为 `.drawit.json`，并导出 SVG 或 PNG。
+可以撤销、重做、组合、对齐、分布、吸附到网格和自动布局。工程保存为 `.drawit.json`，并可以导出 SVG 或 PNG。
 
-## 怎么用
+## 开始使用
 
-安装后直接打开。第一次会看到一张二分查找示例。快捷键、保存位置，以及怎么把图交给 Agent，见 [docs/guide.md](docs/guide.md)。
+安装版打开即可。第一次启动会打开二分查找示例。之后的操作见 [docs/guide.md](docs/guide.md)。
 
-从源码运行：
+从源码运行需要 Node.js 20+ 和 pnpm 10+：
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-然后打开 `http://127.0.0.1:1420`。需要 Node.js 20+ 和 pnpm 10+。维护、测试和打包见 [docs/maintenance.md](docs/maintenance.md)。接入 MCP 见 [docs/mcp.md](docs/mcp.md)。
+界面在 `http://127.0.0.1:1420`。桌面壳、测试和安装包见 [docs/maintenance.md](docs/maintenance.md)。
