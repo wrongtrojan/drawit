@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "documentId": "cs-binary-search",
+  "revision": 0,
+  "title": "二分查找",
+  "canvas": {
+    "width": 1400,
+    "height": 900,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "flowchart",
+      "kind": "terminator",
+      "text": "开始",
+      "id": "n_start",
+      "x": 460,
+      "y": 40,
+      "width": 160,
+      "height": 56
+    },
+    {
+      "type": "flowchart",
+      "kind": "process",
+      "text": "low, high = 边界",
+      "id": "n_init",
+      "x": 430,
+      "y": 150,
+      "width": 220,
+      "height": 64
+    },
+    {
+      "type": "flowchart",
+      "kind": "decision",
+      "text": "low <= high ?",
+      "id": "n_loop",
+      "x": 430,
+      "y": 270,
+      "width": 220,
+      "height": 110
+    },
+    {
+      "type": "flowchart",
+      "kind": "process",
+      "text": "mid = (low + high) / 2",
+      "id": "n_mid",
+      "x": 410,
+      "y": 440,
+      "width": 260,
+      "height": 64
+    },
+    {
+      "type": "flowchart",
+      "kind": "decision",
+      "text": "a[mid] == target ?",
+      "id": "n_cmp",
+      "x": 420,
+      "y": 560,
+      "width": 240,
+      "height": 110
+    },
+    {
+      "type": "flowchart",
+      "kind": "terminator",
+      "text": "返回 mid",
+      "id": "n_found",
+      "x": 80,
+      "y": 760,
+      "width": 160,
+      "height": 56
+    },
+    {
+      "type": "flowchart",
+      "kind": "process",
+      "text": "缩小区间",
+      "id": "n_adjust",
+      "x": 700,
+      "y": 756,
+      "width": 180,
+      "height": 64
+    },
+    {
+      "type": "flowchart",
+      "kind": "terminator",
+      "text": "返回 -1",
+      "id": "n_miss",
+      "x": 980,
+      "y": 292,
+      "width": 160,
+      "height": 56
+    }
+  ],
+  "edges": [
+    {
+      "id": "e_start",
+      "source": "n_start",
+      "target": "n_init",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "e_init",
+      "source": "n_init",
+      "target": "n_loop",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "e_yes_loop",
+      "source": "n_loop",
+      "target": "n_mid",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "yes",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "e_no_loop",
+      "source": "n_loop",
+      "target": "n_miss",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "no",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "e_mid",
+      "source": "n_mid",
+      "target": "n_cmp",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "e_found",
+      "source": "n_cmp",
+      "target": "n_found",
+      "sourceHandle": "left",
+      "targetHandle": "top",
+      "label": "yes",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "e_adjust",
+      "source": "n_cmp",
+      "target": "n_adjust",
+      "sourceHandle": "right",
+      "targetHandle": "top",
+      "label": "no",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "e_back",
+      "source": "n_adjust",
+      "target": "n_loop",
+      "sourceHandle": "top",
+      "targetHandle": "right",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

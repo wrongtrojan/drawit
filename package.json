@@ -14,6 +14,6 @@
     "build:desktop": "node scripts/icons.mjs && pnpm bundle:runtime && pnpm --filter @drawit/desktop build",
     "test:runtime": "node scripts/check-runtime.mjs",
     "package:dmg": "node scripts/package-dmg.mjs",
-    "examples:evolution": "pnpm --filter @drawit/mcp exec tsx ../../scripts/write-evolution-examples.ts"
+    "examples": "pnpm --filter @drawit/mcp exec tsx ../../scripts/write-examples.ts"
   }
 }

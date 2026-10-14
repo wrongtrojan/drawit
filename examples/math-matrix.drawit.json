@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "documentId": "math-matrix",
+  "revision": 0,
+  "title": "矩阵乘法",
+  "canvas": {
+    "width": 1100,
+    "height": 460,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "矩阵乘法",
+      "id": "title",
+      "x": 40,
+      "y": 16,
+      "width": 1020,
+      "height": 40,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "text",
+      "text": "A  2×3",
+      "id": "label-a",
+      "x": 40,
+      "y": 70,
+      "width": 160,
+      "height": 32
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "1",
+          "2",
+          "3"
+        ],
+        [
+          "4",
+          "5",
+          "6"
+        ]
+      ],
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [
+        0
+      ],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "a",
+      "x": 40,
+      "y": 110,
+      "width": 280,
+      "height": 120
+    },
+    {
+      "type": "text",
+      "text": "B  3×2",
+      "id": "label-b",
+      "x": 400,
+      "y": 70,
+      "width": 160,
+      "height": 32
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "7",
+          "8"
+        ],
+        [
+          "9",
+          "10"
+        ],
+        [
+          "11",
+          "12"
+        ]
+      ],
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [
+        0
+      ],
+      "highlightCells": [],
+      "id": "b",
+      "x": 400,
+      "y": 110,
+      "width": 220,
+      "height": 160
+    },
+    {
+      "type": "text",
+      "text": "C  2×2",
+      "id": "label-c",
+      "x": 740,
+      "y": 70,
+      "width": 160,
+      "height": 32
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "58",
+          "64"
+        ],
+        [
+          "139",
+          "154"
+        ]
+      ],
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [
+        [
+          0,
+          0
+        ]
+      ],
+      "id": "c",
+      "x": 740,
+      "y": 110,
+      "width": 220,
+      "height": 120
+    },
+    {
+      "type": "text",
+      "text": "1×7 + 2×9 + 3×11 = 58",
+      "id": "product",
+      "x": 40,
+      "y": 320,
+      "width": 420,
+      "height": 40,
+      "style": {
+        "fontSize": 18
+      }
+    },
+    {
+      "type": "text",
+      "text": "中间维 3 必须相等才能相乘",
+      "id": "rule",
+      "x": 480,
+      "y": 320,
+      "width": 420,
+      "height": 40
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

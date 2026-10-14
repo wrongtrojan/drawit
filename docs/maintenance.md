@@ -47,7 +47,7 @@ flowchart LR
 3. 在 `packages/core/src/registry.ts` 登记类型、分类、默认值和关键词，并在 componentGuidance.ts 写适用情形、语义字段和组合顺序。`diagram_catalog` 读取这份登记。
 4. 在 `packages/core/src/contentLayout.ts` 接入需要随内容变化的尺寸；projectSemanticNode 是统一投影入口。再在 `packages/render/src/svg.ts` 用同一渲染器画出语义外观。语义字段留在节点上。
 5. 在 `apps/desktop/src/SemanticFields.tsx` 接入语义字段编辑，由 `Properties.tsx` 展示。特殊形状的连接边界写在 core 的 `nodeConnectionBox`，画布 Handle 和导出连线使用同一规则。
-6. 补 schema、往返保存和渲染测试。需要 Agent 回归时，在 `docs/scenarios.md` 增加一条简略提示和一条详尽提示。
+6. 补 schema、往返保存和渲染测试。需要 Agent 回归时，在 `docs/scenarios.md` 增加一条代表提示，并在 `examples/` 放同名工程。
 
 自动布局只在显式调用时运行。父子坐标与 React Flow 一致：没有父节点时相对画布，有 `parentId` 时相对父容器。
 
@@ -85,16 +85,16 @@ pnpm --filter @drawit/desktop tauri build
 
 ## 语义图元回归
 
-本轮新增类型及规则见 [evolution.md](evolution.md)。`packages/core/src/evolution.test.ts` 检查目录示例、字段编辑、文件往返、过期版本和非法数据回滚；render/evolution.test.ts 检查 19 份工程及树/图结构；desktop/SemanticFields.test.tsx 检查实际属性编辑；mcp/evolution.test.ts 检查会话转发与未知类型拒绝。
+`packages/core/src/semantic.test.ts` 检查目录示例、字段编辑、文件往返、过期版本和非法数据回滚。`packages/render/src/semantic.test.ts` 检查 `examples/` 里的工程，以及树和图的结构。`apps/desktop` 的 `SemanticFields.test.tsx` 检查属性编辑。`packages/mcp/src/semantic.test.ts` 检查会话转发和未知类型拒绝。
 
 ```sh
-pnpm examples:evolution
+pnpm examples
 pnpm test
 pnpm typecheck
 pnpm --filter @drawit/desktop build
 ```
 
-工程输出到 examples/evolution，PNG 默认在系统临时目录的 drawit-evolution-reviews（可通过 DRAWIT_REVIEW_DIR 覆盖）。需要逐图检查关系、文字和箭头，再按 id 修改；生成成功不等于视觉通过。原有 22 条提示词保持原文，本轮只追加 16 条。
+`pnpm examples` 把 `examples/` 里的工程渲染到 `examples/fig`。需要逐图检查关系、文字和箭头，再按 id 修改。生成成功只表示图已写出。
 
 ## 数据目录
 

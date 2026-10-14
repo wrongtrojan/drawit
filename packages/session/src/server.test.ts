@@ -125,6 +125,10 @@ describe("session persistence", () => {
       const opened = await call(socket, { type: "open", documentId: created.document?.documentId });
       expect(opened.document?.nodes).toEqual(added.document?.nodes);
       expect(opened.revision).toBe(1);
+      const removed = await call(socket, { type: "delete", documentId: created.document?.documentId });
+      expect(removed.ok).toBe(true);
+      expect(removed.documents?.some((item) => item.documentId === created.document?.documentId)).toBe(false);
+      expect(removed.document?.documentId).not.toBe(created.document?.documentId);
     } finally { socket.terminate(); await host.close(); }
   });
 

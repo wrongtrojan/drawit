@@ -1,0 +1,516 @@
+{
+  "schemaVersion": 1,
+  "documentId": "ai-mha",
+  "revision": 0,
+  "title": "多头注意力",
+  "canvas": {
+    "width": 1560,
+    "height": 680,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "多头注意力",
+      "id": "title",
+      "x": 40,
+      "y": 16,
+      "width": 280,
+      "height": 40,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "tensor",
+      "name": "x",
+      "shape": "[B, T, d]",
+      "id": "x",
+      "x": 40,
+      "y": 250,
+      "width": 150,
+      "height": 80
+    },
+    {
+      "type": "text",
+      "text": "线性投影",
+      "id": "project",
+      "x": 40,
+      "y": 210,
+      "width": 150,
+      "height": 28
+    },
+    {
+      "type": "tensor",
+      "name": "Q",
+      "shape": "[B, H, T, d_k]",
+      "id": "q",
+      "x": 260,
+      "y": 128,
+      "width": 200,
+      "height": 80,
+      "style": {
+        "fill": "#dbeafe",
+        "stroke": "#1d4ed8",
+        "color": "#1e3a8a"
+      }
+    },
+    {
+      "type": "tensor",
+      "name": "V",
+      "shape": "[B, H, T, d_k]",
+      "id": "v",
+      "x": 260,
+      "y": 280,
+      "width": 200,
+      "height": 80,
+      "style": {
+        "fill": "#dcfce7",
+        "stroke": "#15803d",
+        "color": "#14532d"
+      }
+    },
+    {
+      "type": "tensor",
+      "name": "K",
+      "shape": "[B, H, T, d_k]",
+      "id": "k",
+      "x": 260,
+      "y": 418,
+      "width": 200,
+      "height": 80,
+      "style": {
+        "fill": "#fef3c7",
+        "stroke": "#b45309",
+        "color": "#78350f"
+      }
+    },
+    {
+      "type": "container",
+      "title": "头 1",
+      "id": "head1",
+      "x": 540,
+      "y": 70,
+      "width": 560,
+      "height": 250
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "0.2",
+          "0.1"
+        ],
+        [
+          "0.0",
+          "0.4"
+        ]
+      ],
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [
+        [
+          0,
+          0
+        ]
+      ],
+      "id": "score1",
+      "x": 16,
+      "y": 48,
+      "width": 150,
+      "height": 100,
+      "parentId": "head1"
+    },
+    {
+      "type": "text",
+      "text": "QK^T / sqrt(d_k)",
+      "id": "scale1",
+      "x": 190,
+      "y": 44,
+      "width": 250,
+      "height": 32,
+      "parentId": "head1"
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "softmax",
+      "id": "softmax1",
+      "x": 190,
+      "y": 88,
+      "width": 150,
+      "height": 44,
+      "parentId": "head1"
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "× V",
+      "id": "times1",
+      "x": 190,
+      "y": 148,
+      "width": 150,
+      "height": 44,
+      "parentId": "head1"
+    },
+    {
+      "type": "tensor",
+      "name": "头1输出",
+      "shape": "[B, H, T, d_k]",
+      "id": "hout1",
+      "x": 360,
+      "y": 148,
+      "width": 180,
+      "height": 72,
+      "parentId": "head1"
+    },
+    {
+      "type": "annotation",
+      "text": "因果掩码：未来位置不参与",
+      "targetId": "score1",
+      "id": "mask",
+      "x": 16,
+      "y": 160,
+      "width": 160,
+      "height": 72,
+      "parentId": "head1"
+    },
+    {
+      "type": "container",
+      "title": "头 2",
+      "id": "head2",
+      "x": 540,
+      "y": 360,
+      "width": 560,
+      "height": 250
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "0.1",
+          "0.3"
+        ],
+        [
+          "0.5",
+          "0.2"
+        ]
+      ],
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [
+        [
+          1,
+          0
+        ]
+      ],
+      "id": "score2",
+      "x": 16,
+      "y": 48,
+      "width": 150,
+      "height": 100,
+      "parentId": "head2"
+    },
+    {
+      "type": "text",
+      "text": "QK^T / sqrt(d_k)",
+      "id": "scale2",
+      "x": 190,
+      "y": 44,
+      "width": 250,
+      "height": 32,
+      "parentId": "head2"
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "softmax",
+      "id": "softmax2",
+      "x": 190,
+      "y": 88,
+      "width": 150,
+      "height": 44,
+      "parentId": "head2"
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "× V",
+      "id": "times2",
+      "x": 190,
+      "y": 148,
+      "width": 150,
+      "height": 44,
+      "parentId": "head2"
+    },
+    {
+      "type": "tensor",
+      "name": "头2输出",
+      "shape": "[B, H, T, d_k]",
+      "id": "hout2",
+      "x": 360,
+      "y": 148,
+      "width": 180,
+      "height": 72,
+      "parentId": "head2"
+    },
+    {
+      "type": "text",
+      "text": "同一组 Q、K、V\nH 可以更多",
+      "id": "same",
+      "x": 16,
+      "y": 164,
+      "width": 160,
+      "height": 64,
+      "parentId": "head2"
+    },
+    {
+      "type": "text",
+      "text": "softmax(QK^T / sqrt(d_k)) V",
+      "id": "formula",
+      "x": 1160,
+      "y": 70,
+      "width": 320,
+      "height": 36
+    },
+    {
+      "type": "tensor",
+      "name": "拼接",
+      "shape": "[B, T, H·d_k]",
+      "id": "concat",
+      "x": 1160,
+      "y": 160,
+      "width": 250,
+      "height": 80
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "输出投影",
+      "id": "projection",
+      "x": 1160,
+      "y": 320,
+      "width": 180,
+      "height": 56
+    },
+    {
+      "type": "tensor",
+      "name": "输出",
+      "shape": "[B, T, d]",
+      "id": "y",
+      "x": 1160,
+      "y": 430,
+      "width": 200,
+      "height": 80,
+      "style": {
+        "fill": "#ede9fe",
+        "stroke": "#6d28d9",
+        "color": "#4c1d95"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "x_q",
+      "source": "x",
+      "target": "q",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "color": "#1d4ed8"
+    },
+    {
+      "id": "x_v",
+      "source": "x",
+      "target": "v",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "color": "#15803d"
+    },
+    {
+      "id": "x_k",
+      "source": "x",
+      "target": "k",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "color": "#b45309"
+    },
+    {
+      "id": "q_score1",
+      "source": "q",
+      "target": "score1",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "color": "#1d4ed8"
+    },
+    {
+      "id": "k_score2",
+      "source": "k",
+      "target": "score2",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "color": "#b45309"
+    },
+    {
+      "id": "score1_softmax1",
+      "source": "score1",
+      "target": "softmax1",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "softmax1_times1",
+      "source": "softmax1",
+      "target": "times1",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "times1_hout1",
+      "source": "times1",
+      "target": "hout1",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "score2_softmax2",
+      "source": "score2",
+      "target": "softmax2",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "softmax2_times2",
+      "source": "softmax2",
+      "target": "times2",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "times2_hout2",
+      "source": "times2",
+      "target": "hout2",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "hout1_concat",
+      "source": "hout1",
+      "target": "concat",
+      "sourceHandle": "right",
+      "targetHandle": "left",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "hout2_concat",
+      "source": "hout2",
+      "target": "concat",
+      "sourceHandle": "right",
+      "targetHandle": "right",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "waypoints": [
+        {
+          "x": 1480,
+          "y": 544
+        },
+        {
+          "x": 1480,
+          "y": 200
+        }
+      ]
+    },
+    {
+      "id": "concat_projection",
+      "source": "concat",
+      "target": "projection",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "projection_y",
+      "source": "projection",
+      "target": "y",
+      "sourceHandle": "bottom",
+      "targetHandle": "top",
+      "label": "",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "color": "#6d28d9"
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

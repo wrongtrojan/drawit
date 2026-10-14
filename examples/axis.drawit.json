@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "documentId": "axis",
+  "revision": 0,
+  "title": "二维坐标",
+  "canvas": {
+    "width": 980,
+    "height": 520,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "二维坐标",
+      "id": "title",
+      "x": 40,
+      "y": 16,
+      "width": 900,
+      "height": 40,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "axis",
+      "title": "y",
+      "direction": "vertical",
+      "min": 0,
+      "max": 3,
+      "ticks": [
+        {
+          "value": 0,
+          "label": " "
+        },
+        {
+          "value": 1
+        },
+        {
+          "value": 2
+        },
+        {
+          "value": 3
+        }
+      ],
+      "id": "y",
+      "x": 446,
+      "y": 96,
+      "width": 160,
+      "height": 320
+    },
+    {
+      "type": "axis",
+      "title": "x",
+      "direction": "horizontal",
+      "min": -2,
+      "max": 2,
+      "ticks": [
+        {
+          "value": -2
+        },
+        {
+          "value": -1
+        },
+        {
+          "value": 0
+        },
+        {
+          "value": 1
+        },
+        {
+          "value": 2
+        }
+      ],
+      "id": "x",
+      "x": 200,
+      "y": 300,
+      "width": 640,
+      "height": 160
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

@@ -15,7 +15,7 @@ interface ToolbarProps {
 }
 
 const paths: Record<string, string> = {
-  new: "M12 4v16M4 12h16", open: "M3 7h7l2 3h9l-3 10H3zM3 7V4h7l2 3",
+  new: "M12 4v16M4 12h16", open: "M12 3l8 4-8 4-8-4 8-4zM4 12l8 4 8-4M4 17l8 4 8-4",
   save: "M4 3h13l3 3v15H4zM8 3v6h8V3M8 21v-8h8v8",
   undo: "M8 5L3 10l5 5M3 10h10a7 7 0 0 1 7 7", redo: "M16 5l5 5-5 5M21 10H11a7 7 0 0 0-7 7",
   copy: "M9 9h12v12H9zM15 9V3H3v12h6", cut: "M9 9l12 12M9 15L21 3M9 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
