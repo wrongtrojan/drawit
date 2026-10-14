@@ -36,7 +36,7 @@ it("rasterizes fractions as SVG paths while retaining LaTeX in user SVG", async 
   expect(png.png.subarray(0, 4).toString("hex")).toBe("89504e47");
 });
 
-it.each(["sequence-short", "sequence-long", "table-short", "table-long", "architecture-short", "architecture-long"])("round trips and reviews the %s semantic fixture", async (name) => {
+it.each(["sequence", "architecture", "class"])("round trips and reviews the %s semantic fixture", async (name) => {
   const { readFile } = await import("node:fs/promises");
   const { parseDocument, validateDocument } = await import("@drawit/core");
   const document = parseDocument(JSON.parse(await readFile(new URL(`../../../examples/${name}.drawit.json`, import.meta.url), "utf8")));

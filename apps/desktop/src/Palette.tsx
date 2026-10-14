@@ -2,9 +2,14 @@ import { searchComponents, type ComponentDefinition } from "@drawit/core";
 import { useMemo, useState } from "react";
 
 const categories = [
-  { id: "basic", label: "基础" },
-  { id: "domain", label: "领域" },
+  { id: "shape", label: "图形" },
+  { id: "group", label: "分组" },
+  { id: "flow", label: "流程" },
+  { id: "sequence", label: "时序" },
+  { id: "data", label: "数据" },
+  { id: "model", label: "建模" },
   { id: "math", label: "数学" },
+  { id: "time", label: "时间" },
 ] as const;
 
 export function Palette({ onCreate, collapsed, onToggle }: { onCreate: (component: ComponentDefinition) => void; collapsed: boolean; onToggle: () => void }) {

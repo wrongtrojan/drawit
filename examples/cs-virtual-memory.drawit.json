@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "documentId": "cs-virtual-memory",
+  "revision": 0,
+  "title": "虚拟地址到物理地址",
+  "canvas": {
+    "width": 1360,
+    "height": 440,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "虚拟地址到物理地址",
+      "id": "title",
+      "x": 40,
+      "y": 16,
+      "width": 1280,
+      "height": 40,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "table",
+      "headers": [
+        "虚拟页",
+        "状态",
+        "物理页 / 去向"
+      ],
+      "cells": [
+        [
+          "0x1",
+          "在内存",
+          "0x8A"
+        ],
+        [
+          "0x2",
+          "缺页",
+          "缺页，不能计算物理地址，需要从磁盘调入"
+        ]
+      ],
+      "merges": [],
+      "id": "pages",
+      "x": 40,
+      "y": 80,
+      "width": 760,
+      "height": 180
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "磁盘",
+      "id": "disk",
+      "x": 860,
+      "y": 200,
+      "width": 140,
+      "height": 64
+    },
+    {
+      "type": "annotation",
+      "text": "0x2 缺页，不能计算物理地址",
+      "targetId": "disk",
+      "id": "fault",
+      "x": 1040,
+      "y": 180,
+      "width": 240,
+      "height": 72
+    },
+    {
+      "type": "text",
+      "text": "0x00001234 = 页号 0x1 + 偏移 0x234\n物理地址 = 0x8A000 + 0x234 = 0x8A234",
+      "id": "address",
+      "x": 40,
+      "y": 300,
+      "width": 640,
+      "height": 72
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

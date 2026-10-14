@@ -2,6 +2,16 @@ import { SemanticFields } from "./SemanticFields.js";
 import { useState } from "react";
 import { isContainerNode, projectSemanticNode, stylePresets, type DiagramDocument, type DiagramNode, type NodePatch, type StylePresetName } from "@drawit/core";
 
+const presetLabel: Record<StylePresetName, string> = {
+  default: "默认",
+  muted: "弱化",
+  emphasis: "强调",
+  query: "查询",
+  key: "键",
+  value: "值",
+  output: "输出",
+};
+
 interface PropertiesProps {
   document: DiagramDocument;
   selection: string[];
@@ -93,7 +103,7 @@ function NodeFields({ node, nodes, onPatch }: { node: DiagramNode; nodes: Diagra
       </label>
       <div className="preset-row">
         {(Object.keys(stylePresets) as StylePresetName[]).map((name) => (
-          <button key={name} type="button" onClick={() => onPatch({ style: stylePresets[name] })}>{name}</button>
+          <button key={name} type="button" onClick={() => onPatch({ style: stylePresets[name] })}>{presetLabel[name]}</button>
         ))}
       </div>
       </fieldset>

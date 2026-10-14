@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "documentId": "office-review",
+  "revision": 0,
+  "title": "第三季度复盘",
+  "canvas": {
+    "width": 1300,
+    "height": 520,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "第三季度复盘",
+      "id": "title",
+      "x": 40,
+      "y": 16,
+      "width": 1220,
+      "height": 40,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "container",
+      "title": "目标",
+      "id": "goal",
+      "x": 40,
+      "y": 70,
+      "width": 280,
+      "height": 160
+    },
+    {
+      "type": "text",
+      "text": "季度收入 100 万",
+      "id": "goal-text",
+      "x": 16,
+      "y": 48,
+      "width": 248,
+      "height": 80,
+      "parentId": "goal"
+    },
+    {
+      "type": "container",
+      "title": "结果",
+      "id": "result",
+      "x": 340,
+      "y": 70,
+      "width": 280,
+      "height": 160
+    },
+    {
+      "type": "text",
+      "text": "实际收入 86 万，完成 86%",
+      "id": "result-text",
+      "x": 16,
+      "y": 48,
+      "width": 248,
+      "height": 80,
+      "parentId": "result"
+    },
+    {
+      "type": "container",
+      "title": "问题",
+      "id": "problem",
+      "x": 640,
+      "y": 70,
+      "width": 280,
+      "height": 160
+    },
+    {
+      "type": "text",
+      "text": "企业试点未完成",
+      "id": "problem-text",
+      "x": 16,
+      "y": 48,
+      "width": 248,
+      "height": 80,
+      "parentId": "problem"
+    },
+    {
+      "type": "container",
+      "title": "下一步",
+      "id": "next",
+      "x": 940,
+      "y": 70,
+      "width": 300,
+      "height": 160
+    },
+    {
+      "type": "text",
+      "text": "收缩试点范围\n增加 1 名实施\n上线账单功能",
+      "id": "next-text",
+      "x": 16,
+      "y": 36,
+      "width": 268,
+      "height": 100,
+      "parentId": "next"
+    },
+    {
+      "type": "table",
+      "headers": [
+        "季度",
+        "指标",
+        "计划",
+        "实际"
+      ],
+      "cells": [
+        [
+          "第三季度",
+          "收入",
+          "100 万",
+          "86 万"
+        ],
+        [
+          "",
+          "完成率",
+          "100%",
+          "86%"
+        ]
+      ],
+      "merges": [
+        {
+          "row": 1,
+          "column": 0,
+          "rowSpan": 2,
+          "columnSpan": 1
+        }
+      ],
+      "id": "metrics",
+      "x": 40,
+      "y": 270,
+      "width": 900,
+      "height": 180
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

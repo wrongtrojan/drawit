@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "documentId": "swimlane",
+  "revision": 0,
+  "title": "跨职责审批流程",
+  "canvas": {
+    "width": 1200,
+    "height": 520,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "跨职责审批流程",
+      "id": "title",
+      "x": 40,
+      "y": 16,
+      "width": 1120,
+      "height": 40,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "swimlane",
+      "title": "申请人",
+      "direction": "horizontal",
+      "id": "requester",
+      "x": 40,
+      "y": 70,
+      "width": 1080,
+      "height": 180
+    },
+    {
+      "type": "flowchart",
+      "kind": "process",
+      "text": "提交申请",
+      "id": "apply",
+      "x": 80,
+      "y": 56,
+      "width": 180,
+      "height": 64,
+      "parentId": "requester"
+    },
+    {
+      "type": "flowchart",
+      "kind": "terminator",
+      "text": "完成",
+      "id": "done",
+      "x": 760,
+      "y": 56,
+      "width": 180,
+      "height": 56,
+      "parentId": "requester"
+    },
+    {
+      "type": "swimlane",
+      "title": "审批人",
+      "direction": "horizontal",
+      "id": "reviewer",
+      "x": 40,
+      "y": 270,
+      "width": 1080,
+      "height": 200
+    },
+    {
+      "type": "flowchart",
+      "kind": "process",
+      "text": "填写修改意见",
+      "id": "revise",
+      "x": 80,
+      "y": 64,
+      "width": 200,
+      "height": 64,
+      "parentId": "reviewer"
+    },
+    {
+      "type": "flowchart",
+      "kind": "decision",
+      "text": "批准？",
+      "id": "decision",
+      "x": 460,
+      "y": 48,
+      "width": 160,
+      "height": 100,
+      "parentId": "reviewer"
+    }
+  ],
+  "edges": [
+    {
+      "id": "apply_decision",
+      "source": "apply",
+      "target": "decision",
+      "sourceHandle": "right",
+      "targetHandle": "top",
+      "label": "提交",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "waypoints": [
+        {
+          "x": 400,
+          "y": 158
+        },
+        {
+          "x": 400,
+          "y": 300
+        },
+        {
+          "x": 580,
+          "y": 300
+        }
+      ]
+    },
+    {
+      "id": "decision_done",
+      "source": "decision",
+      "target": "done",
+      "sourceHandle": "top",
+      "targetHandle": "bottom",
+      "label": "是",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "waypoints": [
+        {
+          "x": 580,
+          "y": 250
+        },
+        {
+          "x": 890,
+          "y": 250
+        }
+      ]
+    },
+    {
+      "id": "decision_revise",
+      "source": "decision",
+      "target": "revise",
+      "sourceHandle": "left",
+      "targetHandle": "right",
+      "label": "否",
+      "router": "straight",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "revise_apply",
+      "source": "revise",
+      "target": "apply",
+      "sourceHandle": "top",
+      "targetHandle": "bottom",
+      "label": "退回修改",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid",
+      "waypoints": [
+        {
+          "x": 220,
+          "y": 250
+        }
+      ]
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

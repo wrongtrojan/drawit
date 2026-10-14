@@ -78,8 +78,10 @@ legend { font-weight: 600; color: #475569; padding-right: 8px; }
 .document-dialog { width: min(540px, 90vw); max-height: 70vh; overflow: auto; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 12px 40px #0f172a30; }
 .dialog-heading { display: flex; align-items: center; justify-content: space-between; }
 .dialog-heading h2 { font-size: 16px; }
-.document-entry { display: flex; flex-direction: column; align-items: start; gap: 6px; width: 100%; margin: 8px 0; padding: 12px; }
+.document-entry { display: flex; align-items: center; gap: 8px; width: 100%; margin: 8px 0; padding: 4px 4px 4px 0; border: 1px solid #e2e8f0; border-radius: 8px; }
+.document-open { display: flex; flex-direction: column; align-items: start; gap: 6px; flex: 1; min-width: 0; padding: 8px 12px; border: none; background: transparent; text-align: left; }
 .document-entry span { color: #64748b; font-size: 11px; }
+.document-delete { flex: none; color: #b91c1c; }
 .document-dialog textarea { width: 100%; font-family: monospace; }
 
 .external-warning { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #fcd34d; border-radius: 8px; background: #fffbeb; box-shadow: 0 4px 16px #0f172a15; }

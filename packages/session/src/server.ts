@@ -268,6 +268,25 @@ export async function startSessionHost(options: { home: string; port?: number; r
       }
       case "list":
         return { type: "response", requestId: message.requestId, ok: true, documents: await readJsonDir(options.home) };
+      case "delete": {
+        if (!message.documentId) throw new DrawitError("VALIDATION_ERROR", "documentId is required");
+        const current = await controller.getSnapshot();
+        await rm(safeDocumentPath(options.home, message.documentId), { force: true });
+        const documents = await readJsonDir(options.home);
+        if (current.documentId !== message.documentId) {
+          return { type: "response", requestId: message.requestId, ok: true, documents, document: current, revision: current.revision, dirty: await controller.isDirty(), path: controller.path, ...historyFlags() };
+        }
+        const next = documents[0];
+        const opened = next
+          ? await readDocumentFile(safeDocumentPath(options.home, next.documentId))
+          : createDocument("未命名图示");
+        const nextPath = safeDocumentPath(options.home, opened.documentId);
+        if (!next) await writeDocumentFile(nextPath, opened);
+        const result = await controller.replace(opened, nextPath, message.source ?? "gui");
+        view.selection = [];
+        savedDocumentJson = JSON.stringify(result.document);
+        return { type: "response", requestId: message.requestId, ok: true, documents: next ? documents : await readJsonDir(options.home), document: result.document, revision: result.revision, dirty: false, path: nextPath, view, ...historyFlags() };
+      }
       case "setView":
         view.selection = message.selection ?? [];
         if (message.viewport) view.viewport = message.viewport;

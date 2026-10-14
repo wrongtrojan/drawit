@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "documentId": "math-bayes",
+  "revision": 0,
+  "title": "一次检测后的信念",
+  "canvas": {
+    "width": 1320,
+    "height": 460,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "text",
+      "text": "一次检测后的信念",
+      "id": "title",
+      "x": 40,
+      "y": 16,
+      "width": 1240,
+      "height": 40,
+      "style": {
+        "fontSize": 24
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "P(H|D)=\\frac{P(D|H)P(H)}{P(D)}",
+      "id": "formula",
+      "x": 80,
+      "y": 70,
+      "width": 520,
+      "height": 80
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "先验\nP(H) = 0.01",
+      "id": "prior",
+      "x": 40,
+      "y": 190,
+      "width": 220,
+      "height": 90
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "似然\nP(D|H) = 0.90\nP(D|非H) = 0.05",
+      "id": "likelihood",
+      "x": 320,
+      "y": 190,
+      "width": 260,
+      "height": 110
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "证据\nP(D) = 0.0585",
+      "id": "evidence",
+      "x": 660,
+      "y": 190,
+      "width": 240,
+      "height": 90
+    },
+    {
+      "type": "roundedRectangle",
+      "text": "后验\nP(H|D) ≈ 0.154",
+      "id": "posterior",
+      "x": 980,
+      "y": 190,
+      "width": 240,
+      "height": 90,
+      "style": {
+        "fill": "#dbeafe",
+        "stroke": "#1d4ed8",
+        "color": "#1e3a8a"
+      }
+    },
+    {
+      "type": "text",
+      "text": "阳性之后患病概率从 1% 升到约 15%，但仍然不大。",
+      "id": "note",
+      "x": 980,
+      "y": 300,
+      "width": 280,
+      "height": 72
+    }
+  ],
+  "edges": [
+    {
+      "id": "prior_evidence",
+      "source": "prior",
+      "target": "evidence",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "likelihood_evidence",
+      "source": "likelihood",
+      "target": "evidence",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    },
+    {
+      "id": "evidence_posterior",
+      "source": "evidence",
+      "target": "posterior",
+      "label": "",
+      "router": "orthogonal",
+      "arrowStart": false,
+      "arrowEnd": true,
+      "lineStyle": "solid"
+    }
+  ],
+  "styles": {
+    "fontFamily": "Segoe UI, sans-serif",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#1f2937",
+    "edgeColor": "#334155"
+  }
+}

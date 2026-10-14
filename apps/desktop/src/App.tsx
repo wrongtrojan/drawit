@@ -329,9 +329,21 @@ export function App() {
         <section className="document-dialog" role="dialog" aria-modal="true" aria-label="打开文档" onClick={(event) => event.stopPropagation()}>
           <div className="dialog-heading"><h2>打开文档</h2><button onClick={() => setDocuments(null)} aria-label="关闭">×</button></div>
           {dirty ? <p className="muted">请先保存当前文档，再切换。</p> : null}
-          {documents.length === 0 ? <p>文档库是空的。</p> : documents.map((item) => <button className="document-entry" key={item.documentId} disabled={dirty && item.documentId !== document.documentId} onClick={() => {
-            void request({ type: "open", documentId: item.documentId, source: "gui" }, `已打开 ${item.title}`).then(() => setDocuments(null));
-          }}><strong>{item.title}</strong><span>版本 {item.revision} · {item.documentId}</span></button>)}
+          {documents.length === 0 ? <p>文档库是空的。</p> : documents.map((item) => <div className="document-entry" key={item.documentId}>
+            <button className="document-open" disabled={dirty && item.documentId !== document.documentId} onClick={() => {
+              void request({ type: "open", documentId: item.documentId, source: "gui" }, `已打开 ${item.title}`).then(() => setDocuments(null));
+            }}><strong>{item.title}</strong><span>版本 {item.revision} · {item.documentId}</span></button>
+            <button className="document-delete" aria-label={`删除 ${item.title}`} onClick={() => {
+              const removingCurrent = item.documentId === document.documentId;
+              if (!window.confirm(removingCurrent && dirty ? `删除「${item.title}」？未保存的修改会丢掉。` : `删除「${item.title}」？`)) return;
+              void socket.current.request({ type: "delete", documentId: item.documentId, source: "gui" }).then((response) => {
+                if (!response.ok) return setMessage(response.message ?? "无法删除");
+                if (removingCurrent) accept(response);
+                setDocuments(response.documents ?? []);
+                setMessage(`已删除 ${item.title}`);
+              });
+            }}>删除</button>
+          </div>)}
         </section>
       </div> : null}
       {mcpConfig ? <div className="modal-backdrop" onClick={() => setMcpConfig(null)}><section className="document-dialog" role="dialog" aria-modal="true" aria-label="MCP 配置" onClick={(event) => event.stopPropagation()}><div className="dialog-heading"><h2>Cursor / Claude Desktop 配置</h2><button onClick={() => setMcpConfig(null)}>关闭</button></div><textarea readOnly rows={12} value={mcpConfig} onFocus={(event) => event.target.select()} /></section></div> : null}
