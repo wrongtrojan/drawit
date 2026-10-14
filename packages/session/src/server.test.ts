@@ -94,6 +94,22 @@ describe("session host", () => {
 });
 
 describe("session persistence", () => {
+  it("completes an exact saved snapshot while keeping concurrent edits dirty and refuses reused tokens", async () => {
+    const home = await mkdtemp(join(tmpdir(), "drawit-snapshot-")); const host = await startSessionHost({ home }); const socket = await connect(host.port, host.token);
+    try {
+      const created = await call(socket, { type: "create", title: "快照保存" }); const id = created.document!.documentId;
+      await call(socket, { type: "apply", expectedRevision: 0, operations: [{ op: "addNodes", nodes: [{ id: "stable", type: "text", text: "first" }] }] });
+      const prepared = await call(socket, { type: "prepareSave", expectedDocumentId: id });
+      await call(socket, { type: "apply", expectedRevision: 1, operations: [{ op: "updateNodes", updates: [{ id: "stable", patch: { text: "second" } }] }] });
+      const saved = await call(socket, { type: "completeSave", snapshotId: prepared.snapshotId, expectedDocumentId: id });
+      expect(saved).toMatchObject({ ok: true, revision: 2, savedRevision: 1, dirty: true });
+      const { readDocumentFile } = await import("@drawit/core/node"); const disk = await readDocumentFile(saved.path!);
+      expect(disk.revision).toBe(1); expect((disk.nodes[0] as { text: string }).text).toBe("first");
+      expect(await call(socket, { type: "completeSave", snapshotId: prepared.snapshotId })).toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
+      const current = await call(socket, { type: "get" }); expect((current.document!.nodes[0] as { text: string }).text).toBe("second");
+      expect(await call(socket, { type: "save", source: "gui", outputDirectory: "/outside" })).toMatchObject({ ok: false, code: "VALIDATION_ERROR" });
+    } finally { socket.close(); await host.close(); }
+  });
   it("requires save before switching and reopens stable ids without changing revision on save", async () => {
     const home = await mkdtemp(join(tmpdir(), "drawit-save-"));
     const host = await startSessionHost({ home });

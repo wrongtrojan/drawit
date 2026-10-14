@@ -137,3 +137,11 @@ node scripts/stress-session.mjs --home=/absolute/test-home --iterations=10000 --
 ```
 
 此脚本只检查会话修订、同步和磁盘一致性；窗口观察、原生对话框、拖动缩放与 WebView 故障恢复必须单独验收。不得把会话测试报告写作窗口视觉验收通过。
+
+## 原生文件代理
+
+`apps/desktop/src-tauri/src/files.rs` 管理用户选择的目录、一次性句柄和目标身份。句柄绑定 documentId 与 document/svg/png 用途，前端无法提交绝对输出路径；会话和 MCP 不获得外部目录权限。Unix 写入通过持有的目录描述符及 openat/renameat 完成，目标链接被拒绝；Windows 检查规范目录、重解析点及目标身份，须在实机复核。
+
+桌面使用 prepareSave 获取快照、原生写外部文件、completeSave 写内部副本。快照有数量上限及五分钟有效期；失败或取消释放快照。markSavedSnapshot 记录写出的内容，保存期间的新修订不会误标已保存。外部文件检测只通知，reloadSnapshot 验证 id 并增加 revision 后显式替换。
+
+原生代理单测：`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`。未添加通用 fs 权限或前端 dialog 权限；仅主窗口可调用受约束的代理命令。

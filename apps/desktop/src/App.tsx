@@ -12,6 +12,7 @@ import type { SessionResponse } from "@drawit/session/protocol";
 import { StatusBar } from "./StatusBar.js";
 import { isEditingTarget, isMac, shortcut, type EditorAction } from "./keyboard.js";
 import { Toolbar } from "./Toolbar.js";
+import { saveDocument, exportDocument, externalFile, nativeInvoke } from "./nativeFiles.js";
 
 export function App() {
   const socket = useRef(new EditorSocket());
@@ -33,6 +34,9 @@ export function App() {
   const [documents, setDocuments] = useState<NonNullable<SessionResponse["documents"]> | null>(null);
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   const [externalChanged, setExternalChanged] = useState(false);
+  const [externalNative, setExternalNative] = useState(false);
+  const [savePath, setSavePath] = useState<string | null>(null);
+  const fileBusy = useRef(false);
   const [mcpConfig, setMcpConfig] = useState<string | null>(null);
 
   const select = useCallback((ids: string[]) => {
@@ -101,7 +105,7 @@ export function App() {
     client.onEvent = (event) => {
       if (cancelled || !subscribed || !gate.current.accept(event)) return;
       if (event.document) accept({ ...event, type: "response", requestId: "event", ok: true });
-      if (event.event === "externalChange") { setExternalChanged(true); setMessage("工程文件被外部修改；当前内容未被覆盖"); }
+      if (event.event === "externalChange") { setExternalNative(false); setExternalChanged(true); setMessage("工程文件被外部修改；当前内容未被覆盖"); }
       if (event.event === "view" && event.view && selectionRef.current.slice().sort().join("\0") !== event.view.selection.slice().sort().join("\0")) {
         selectionRef.current = event.view.selection; setSelection(event.view.selection);
       }
@@ -137,11 +141,38 @@ export function App() {
     } catch (error) { setMessage(error instanceof Error ? error.message : "会话请求失败"); return false; }
   }, [accept]);
 
+  const save = useCallback(async (force = false) => {
+    if (!documentId.current || !socket.current.connected || fileBusy.current) return;
+    fileBusy.current = true;
+    try {
+      const result = await saveDocument(socket.current, documentId.current, force);
+      if (result.cancelled) return setMessage("已取消保存；未写入文件");
+      if (result.response) accept(result.response);
+      const path = result.receipt?.path ?? result.response?.path;
+      if (path) setSavePath(path);
+      setMessage(`已保存版本 ${result.response?.savedRevision ?? result.response?.revision} 到 ${path}${result.response?.dirty ? "；新修改仍未保存" : ""}`);
+    } catch (error) { setMessage(`保存失败：${error instanceof Error ? error.message : String(error)}；未保存状态保留`); }
+    finally { fileBusy.current = false; }
+  }, [accept]);
+
+  useEffect(() => {
+    if (!document || !connected || !nativeInvoke()) return;
+    let cancelled = false; let checking = false; setSavePath(null);
+    const check = async () => {
+      if (checking) return; checking = true;
+      try { const value = await externalFile(document.documentId); if (!cancelled && value) { if (value.path) setSavePath(value.path); if (value.changed) { setExternalChanged(true); setExternalNative(true); } } }
+      catch { if (!cancelled) { setExternalChanged(true); setExternalNative(true); setMessage("选定保存目录或文件已失效，请重新选择"); } }
+      finally { checking = false; }
+    };
+    void check(); const timer = setInterval(() => void check(), 3000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [document?.documentId, connected]);
+
   const action = useCallback(async (name: EditorAction) => {
     if (!document) return;
     const nodeIds = selection.filter((id) => document.nodes.some((node) => node.id === id));
     const edgeIds = selection.filter((id) => document.edges.some((edge) => edge.id === id));
-    if (name === "save") return request({ type: "save" }, "已保存");
+    if (name === "save") return save();
     if (name === "undo" || name === "redo") return request({ type: name, expectedDocumentId: documentId.current, expectedRevision: revision.current, source: "gui" });
     if (name === "selectAll") return select([...document.nodes.map((node) => node.id), ...document.edges.map((edge) => edge.id)]);
     if (name === "escape") return select([]);
@@ -173,7 +204,7 @@ export function App() {
       const updates = document.nodes.filter((node) => nodeIds.includes(node.id) && !(node.parentId && nodeIds.includes(node.parentId))).map((node) => ({ id: node.id, patch: { x: node.x + delta[0]! * grid, y: node.y + delta[1]! * grid } }));
       await apply([{ op: "updateNodes", updates }]);
     }
-  }, [apply, document, request, select, selection]);
+  }, [apply, document, request, save, select, selection]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -239,6 +270,7 @@ export function App() {
           setMessage("已导入");
         }).catch(() => setMessage("导入失败"))}
         onSave={() => void action("save")}
+        onSaveAs={() => void save(true)}
         onUndo={() => void action("undo")}
         onRedo={() => void action("redo")}
         onCopy={() => void action("copy")}
@@ -257,17 +289,19 @@ export function App() {
         })}
         onFit={() => flow.current?.fitView()}
         onZoom={(delta) => flow.current?.zoomTo((flow.current.getZoom() ?? 1) + delta)}
-        onExport={(format) => void socket.current.request({ type: "render", format, fileName: `${document.documentId}.${format}` }).then((response) => {
-          if (!response.ok) return setMessage(response.message ?? "导出失败");
-          const blob = format === "svg" ? new Blob([response.svg ?? ""], { type: "image/svg+xml" }) : new Blob([Uint8Array.from(atob(response.pngBase64 ?? ""), (char) => char.charCodeAt(0))], { type: "image/png" });
-          const url = URL.createObjectURL(blob);
-          const link = window.document.createElement("a");
-          link.href = url;
-          link.download = `${document.title}.${format}`;
-          link.click();
-          URL.revokeObjectURL(url);
-          setMessage(response.exportPath ? `已导出到 ${response.exportPath}` : "已导出");
-        })}
+        onExport={(format) => {
+          if (fileBusy.current || !connected) return;
+          fileBusy.current = true;
+          void exportDocument(socket.current, document.documentId, format).then((result) => {
+            if (result.cancelled) return setMessage("已取消导出；未写入文件");
+            if (result.receipt) return setMessage(`已导出版本 ${result.receipt.revision} 到 ${result.receipt.path}`);
+            const response = result.response!;
+            const blob = format === "svg" ? new Blob([response.svg ?? ""], { type: "image/svg+xml" }) : new Blob([Uint8Array.from(atob(response.pngBase64 ?? ""), (char) => char.charCodeAt(0))], { type: "image/png" });
+            const url = URL.createObjectURL(blob); const link = window.document.createElement("a");
+            link.href = url; link.download = `${document.title}.${format}`; link.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000); setMessage(`已导出到 ${response.exportPath ?? "下载目录"}`);
+          }).catch((error) => setMessage(`导出失败：${String(error)}`)).finally(() => { fileBusy.current = false; });
+        }}
         onDelete={() => {
           const nodeIds = selection.filter((id) => document.nodes.some((node) => node.id === id));
           const edgeIds = selection.filter((id) => document.edges.some((edge) => edge.id === id));
@@ -308,7 +342,16 @@ export function App() {
           }}
         /> </ErrorBoundary>
       </main>
-      {externalChanged ? <div className="external-warning" role="alert"><span>工程文件已被外部修改。</span><button onClick={() => void request({ type: "reload", source: "gui" }, "已重新加载外部文件").then((ok) => { if (ok) setExternalChanged(false); })}>重新加载{dirty ? "（丢弃未保存修改）" : ""}</button><button onClick={() => setExternalChanged(false)}>保留当前内容</button></div> : null}
+      {externalChanged ? <div className="external-warning" role="alert"><span>工程文件已被外部修改。</span><button onClick={() => void (async () => {
+        try {
+          if (externalNative) {
+            const value = await externalFile(document.documentId, true);
+            if (!value?.payload) throw new Error("外部文件不可读");
+            const ok = await request({ type: "reloadSnapshot", json: JSON.parse(value.payload), expectedDocumentId: document.documentId, expectedRevision: revision.current, source: "gui" }, "已重新加载外部文件");
+            if (ok) { await externalFile(document.documentId, false, value.fingerprint); setExternalChanged(false); }
+          } else if (await request({ type: "reload", expectedDocumentId: document.documentId, source: "gui" }, "已重新加载外部文件")) setExternalChanged(false);
+        } catch (error) { setMessage(`重新加载失败：${String(error)}`); }
+      })()}>重新加载{dirty ? "（丢弃未保存修改）" : ""}</button><button onClick={() => setExternalChanged(false)}>保留当前内容</button></div> : null}
       <Properties
         document={document}
         selection={selection}
@@ -330,7 +373,7 @@ export function App() {
         </section>
       </div> : null}
       {mcpConfig ? <div className="modal-backdrop" onClick={() => setMcpConfig(null)}><section className="document-dialog" role="dialog" aria-modal="true" aria-label="MCP 配置" onClick={(event) => event.stopPropagation()}><div className="dialog-heading"><h2>Cursor / Claude Desktop 配置</h2><button onClick={() => setMcpConfig(null)}>关闭</button></div><textarea readOnly rows={12} value={mcpConfig} onFocus={(event) => event.target.select()} /></section></div> : null}
-      <StatusBar connected={connected} revision={document.revision} dirty={dirty} warnings={warnings} records={records} message={message} onCopyConfig={() => {
+      <StatusBar savePath={savePath} connected={connected} revision={document.revision} dirty={dirty} warnings={warnings} records={records} message={message} onCopyConfig={() => {
         const tauri = (window as unknown as { __TAURI_INTERNALS__?: { invoke: (command: string) => Promise<unknown> } }).__TAURI_INTERNALS__;
         if (!tauri) return setMessage("浏览器开发模式请使用 docs/mcp.md 中的配置");
         void tauri.invoke("drawit_mcp_config").then(async (config) => {

@@ -4,6 +4,7 @@ interface ToolbarProps {
   canUndo: boolean; canRedo: boolean;
   onNew: () => void; onOpen: () => void; onImport: (file: File) => void;
   onSave: () => void; onUndo: () => void; onRedo: () => void;
+  onSaveAs: () => void;
   onCopy: () => void; onCut: () => void; onPaste: () => void;
   onLayout: (direction: "TB" | "LR" | "BT" | "RL") => void;
   onFit: () => void; onZoom: (delta: number) => void;
@@ -63,6 +64,7 @@ export function Toolbar(props: ToolbarProps) {
     <ToolButton icon="plus" label="放大" shortcut={`${mod}+`} onClick={() => props.onZoom(0.1)} />
     <ToolButton icon="minus" label="缩小" shortcut={`${mod}-`} onClick={() => props.onZoom(-0.1)} />
     <details className="tool-menu"><summary>文件</summary><div>
+      <button onClick={props.onSaveAs}>另存为…</button>
       <label className="file-button">导入工程<input type="file" accept="application/json,.drawit.json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) props.onImport(file); event.target.value = ""; }} /></label>
       <button onClick={() => props.onExport("svg")}>导出 SVG</button><button onClick={() => props.onExport("png")}>导出 PNG</button>
     </div></details>

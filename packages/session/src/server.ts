@@ -107,6 +107,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
   };
 
   let savedDocumentJson = JSON.stringify(await controller.getSnapshot());
+  const prepared = new Map<string, { document: DiagramDocument; expires: number }>();
   let activeId = (await controller.getSnapshot()).documentId;
   controller.subscribe((document, record, dirty) => {
     if (document.documentId !== activeId) { documentEpoch++; activeId = document.documentId; }
@@ -160,14 +161,16 @@ export async function startSessionHost(options: { home: string; port?: number; r
 
   async function handle(socket: WebSocket, raw: string): Promise<void> {
     let message: ClientMessage;
+    let replyId = "invalid";
     try {
       const input: unknown = JSON.parse(raw);
+      if (input && typeof input === "object" && "requestId" in input && typeof input.requestId === "string" && input.requestId.length <= 100) replyId = input.requestId;
       checkInputBudget(input);
       const parsed = clientMessageSchema.safeParse(input);
       if (!parsed.success) throw new DrawitError("VALIDATION_ERROR", "Invalid session message");
       message = parsed.data as ClientMessage;
     } catch (error) {
-      send(socket, fail("invalid", error instanceof DrawitError ? error : new DrawitError("VALIDATION_ERROR", "Invalid session message")));
+      send(socket, fail(replyId, error instanceof DrawitError ? error : new DrawitError("VALIDATION_ERROR", "Invalid session message")));
       return;
     }
     if (!message.requestId) return;
@@ -268,6 +271,35 @@ export async function startSessionHost(options: { home: string; port?: number; r
         await controller.replace(document, path, message.source ?? "gui");
         view.selection = [];
         return snapshotResponse(message.requestId);
+      }
+      case "reloadSnapshot": {
+        const current = await controller.getSnapshot();
+        if (message.expectedRevision !== current.revision) throw new DrawitError("REVISION_CONFLICT", "Document changed before reload");
+        const document = parseDocument(message.json);
+        if (document.documentId !== current.documentId) throw new DrawitError("VALIDATION_ERROR", "External file changed document id");
+        document.revision = Math.max(current.revision, document.revision) + 1;
+        const path = safeDocumentPath(options.home, document.documentId);
+        await writeDocumentFile(path, document); await controller.replace(document, path, "gui"); view.selection = [];
+        return snapshotResponse(message.requestId);
+      }
+      case "prepareSave": {
+        const now = Date.now(); for (const [id, value] of prepared) if (value.expires < now) prepared.delete(id);
+        if (prepared.size >= 8) throw new DrawitError("TRANSACTION_FAILED", "Too many pending saves");
+        const document = await controller.getSnapshot();
+        if (message.expectedRevision !== undefined && message.expectedRevision !== document.revision) throw new DrawitError("REVISION_CONFLICT", "Read current document before saving");
+        const snapshotId = randomBytes(16).toString("hex"); prepared.set(snapshotId, { document, expires: now + 300000 });
+        return snapshotResponse(message.requestId, { snapshotId });
+      }
+      case "cancelSave": prepared.delete(message.snapshotId ?? ""); return { type: "response", requestId: message.requestId, ok: true };
+      case "completeSave": {
+        const entry = prepared.get(message.snapshotId ?? ""); prepared.delete(message.snapshotId ?? "");
+        if (!entry || entry.expires < Date.now()) throw new DrawitError("VALIDATION_ERROR", "Saved snapshot expired or was already consumed");
+        if ((await controller.getSnapshot()).documentId !== entry.document.documentId) throw new DrawitError("REVISION_CONFLICT", "Document changed during save");
+        const path = safeDocumentPath(options.home, entry.document.documentId);
+        await writeDocumentFile(path, entry.document); await controller.markSavedSnapshot(entry.document, path); savedDocumentJson = JSON.stringify(entry.document);
+        const current = await controller.getSnapshot(); const dirty = await controller.isDirty();
+        broadcast({ type: "event", event: "saved", document: current, dirty, path, ...historyFlags() });
+        return snapshotResponse(message.requestId, { savedRevision: entry.document.revision });
       }
       case "save": {
         await ensureDocument(message.documentId);

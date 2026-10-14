@@ -1,7 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{fs::OpenOptions, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::Mutex};
+use std::{
+    fs::OpenOptions,
+    path::{Path, PathBuf},
+    process::{Child, Command, Stdio},
+    sync::Mutex,
+};
 use tauri::Manager;
+mod files;
 
 struct SessionProcess(Mutex<Option<Child>>);
 impl Drop for SessionProcess {
@@ -9,7 +15,9 @@ impl Drop for SessionProcess {
         if let Some(mut child) = self.0.lock().unwrap().take() {
             drop(child.stdin.take());
             for _ in 0..40 {
-                if child.try_wait().ok().flatten().is_some() { return; }
+                if child.try_wait().ok().flatten().is_some() {
+                    return;
+                }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
             let _ = child.kill();
@@ -18,21 +26,27 @@ impl Drop for SessionProcess {
     }
 }
 
-struct DesktopConfig { home: PathBuf, mcp: serde_json::Value }
+struct DesktopConfig {
+    home: PathBuf,
+    mcp: serde_json::Value,
+}
 
 fn plain_path(path: &Path) -> PathBuf {
     let text = path.to_string_lossy();
     if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
         return PathBuf::from(format!(r"\\{rest}"));
     }
-    text.strip_prefix(r"\\?\").map(PathBuf::from).unwrap_or_else(|| path.to_path_buf())
+    text.strip_prefix(r"\\?\")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| path.to_path_buf())
 }
 
 fn runtime_command(runtime: &std::path::Path, entry: &str) -> Command {
     let runtime = plain_path(runtime);
     let mut command = Command::new(runtime.join(if cfg!(windows) { "node.exe" } else { "node" }));
     command.arg(runtime.join(entry));
-    #[cfg(windows)] {
+    #[cfg(windows)]
+    {
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
@@ -42,11 +56,20 @@ fn runtime_command(runtime: &std::path::Path, entry: &str) -> Command {
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.get(1).map(String::as_str) == Some("--mcp") {
-        let runtime = args.windows(2).find(|pair| pair[0] == "--runtime").map(|pair| PathBuf::from(&pair[1]));
-        let Some(runtime) = runtime else { eprintln!("drawit --mcp requires --runtime from the copied MCP configuration"); std::process::exit(1); };
+        let runtime = args
+            .windows(2)
+            .find(|pair| pair[0] == "--runtime")
+            .map(|pair| PathBuf::from(&pair[1]));
+        let Some(runtime) = runtime else {
+            eprintln!("drawit --mcp requires --runtime from the copied MCP configuration");
+            std::process::exit(1);
+        };
         match runtime_command(&runtime, "mcp.cjs").status() {
             Ok(status) => std::process::exit(status.code().unwrap_or(1)),
-            Err(error) => { eprintln!("Cannot start drawit MCP: {error}"); std::process::exit(1); }
+            Err(error) => {
+                eprintln!("Cannot start drawit MCP: {error}");
+                std::process::exit(1);
+            }
         }
     }
     tauri::Builder::default()
@@ -58,6 +81,8 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let home = plain_path(&std::env::var("DRAWIT_HOME").map(PathBuf::from).unwrap_or(app.path().app_data_dir()?.with_file_name("drawit")));
+            std::fs::create_dir_all(&home)?;
+            app.manage(files::FileBroker::new(home.clone()));
             let runtime = plain_path(&app.path().resource_dir()?.join("runtime"));
             let (child, command, arguments) = if cfg!(debug_assertions) {
                 let root = plain_path(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..").canonicalize()?);
@@ -74,35 +99,62 @@ fn main() {
             app.manage(DesktopConfig { home: home.clone(), mcp: serde_json::json!({ "mcpServers": { "drawit": { "command": command, "args": arguments, "env": { "DRAWIT_HOME": home } } } }) });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![drawit_session, drawit_mcp_config, drawit_diagnostic])
+        .invoke_handler(tauri::generate_handler![drawit_session, drawit_mcp_config, drawit_diagnostic, files::drawit_choose_directory, files::drawit_write_artifact, files::drawit_external_file])
         .run(tauri::generate_context!())
         .expect("error while running drawit");
 }
 
 #[tauri::command]
 fn drawit_session(config: tauri::State<'_, DesktopConfig>) -> Result<serde_json::Value, String> {
-    let text = std::fs::read_to_string(config.home.join("session.json")).map_err(|error| error.to_string())?;
+    let text = std::fs::read_to_string(config.home.join("session.json"))
+        .map_err(|error| error.to_string())?;
     serde_json::from_str(&text).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-fn drawit_mcp_config(config: tauri::State<'_, DesktopConfig>) -> serde_json::Value { config.mcp.clone() }
+fn drawit_mcp_config(config: tauri::State<'_, DesktopConfig>) -> serde_json::Value {
+    config.mcp.clone()
+}
 
 #[tauri::command]
-fn drawit_diagnostic(config: tauri::State<'_, DesktopConfig>, record: serde_json::Value) -> Result<(), String> {
+fn drawit_diagnostic(
+    config: tauri::State<'_, DesktopConfig>,
+    record: serde_json::Value,
+) -> Result<(), String> {
     use std::io::Write;
     let path = config.home.join("ui.log");
-    if std::fs::metadata(&path).map(|m| m.len() > 5_000_000).unwrap_or(false) {
+    if std::fs::metadata(&path)
+        .map(|m| m.len() > 5_000_000)
+        .unwrap_or(false)
+    {
         let _ = std::fs::rename(config.home.join("ui.log.1"), config.home.join("ui.log.2"));
         let _ = std::fs::rename(&path, config.home.join("ui.log.1"));
     }
     let mut clean = serde_json::Map::new();
-    for key in ["at", "name", "stack", "componentStack", "documentId", "revision", "nodeId"] {
+    for key in [
+        "at",
+        "name",
+        "stack",
+        "componentStack",
+        "documentId",
+        "revision",
+        "nodeId",
+    ] {
         if let Some(value) = record.get(key) {
-            if let Some(text) = value.as_str() { clean.insert(key.to_string(), serde_json::Value::String(text.chars().take(3000).collect())); }
-            else if value.is_u64() { clean.insert(key.to_string(), value.clone()); }
+            if let Some(text) = value.as_str() {
+                clean.insert(
+                    key.to_string(),
+                    serde_json::Value::String(text.chars().take(3000).collect()),
+                );
+            } else if value.is_u64() {
+                clean.insert(key.to_string(), value.clone());
+            }
         }
     }
-    let mut file = OpenOptions::new().create(true).append(true).open(path).map_err(|e| e.to_string())?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_err(|e| e.to_string())?;
     writeln!(file, "{}", serde_json::Value::Object(clean)).map_err(|e| e.to_string())
 }

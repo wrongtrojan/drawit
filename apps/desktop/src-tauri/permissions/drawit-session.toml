@@ -6,3 +6,7 @@ commands.allow = ["drawit_session", "drawit_mcp_config"]
 identifier = "allow-drawit-diagnostic"
 description = "Write bounded local UI failure diagnostics"
 commands.allow = ["drawit_diagnostic"]
+[[permission]]
+identifier = "allow-drawit-file-broker"
+description = "Use native-picked, document-bound directory handles"
+commands.allow = ["drawit_choose_directory", "drawit_write_artifact", "drawit_external_file"]

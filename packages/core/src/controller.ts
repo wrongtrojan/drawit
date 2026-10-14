@@ -100,6 +100,14 @@ export class DocumentController {
     });
   }
 
+  markSavedSnapshot(snapshot: DiagramDocument, filePath: string): Promise<void> {
+    return this.enqueue(() => {
+      if (snapshot.documentId !== this.document.documentId || snapshot.revision > this.document.revision) throw new DrawitError("REVISION_CONFLICT", "Saved snapshot no longer belongs to this document");
+      this.filePath = filePath;
+      this.savedJson = JSON.stringify(snapshot);
+    });
+  }
+
   replace(document: DiagramDocument, filePath: string | null, source: ChangeSource): Promise<ApplySuccess> {
     return this.enqueue(() => {
       this.document = cloneDocument(document);

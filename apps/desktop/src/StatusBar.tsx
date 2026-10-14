@@ -1,6 +1,7 @@
 import type { Issue, OperationRecord } from "@drawit/core";
 
 interface StatusBarProps {
+  savePath?: string | null;
   connected: boolean;
   revision: number;
   dirty: boolean;
@@ -12,7 +13,7 @@ interface StatusBarProps {
   onCopyConfig: () => void;
 }
 
-export function StatusBar({ connected, revision, dirty, warnings, records, message, open, onToggle, onCopyConfig }: StatusBarProps) {
+export function StatusBar({ savePath, connected, revision, dirty, warnings, records, message, open, onToggle, onCopyConfig }: StatusBarProps) {
   return (
     <>
       {open ? (
@@ -33,7 +34,7 @@ export function StatusBar({ connected, revision, dirty, warnings, records, messa
         <span>版本 {revision}</span>
         <span>{dirty ? "未保存" : "已保存"}</span>
         <button type="button" onClick={onToggle}>{warnings.length} 条提示</button>
-        <span className="status-message">{message}</span>
+        <span className="status-message" title={savePath ?? undefined}>{message}{savePath ? ` · ${savePath}` : ""}</span>
       </footer>
     </>
   );

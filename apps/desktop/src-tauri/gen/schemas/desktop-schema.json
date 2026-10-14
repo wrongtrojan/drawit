@@ -183,6 +183,12 @@
           "markdownDescription": "Write bounded local UI failure diagnostics"
         },
         {
+          "description": "Use native-picked, document-bound directory handles",
+          "type": "string",
+          "const": "allow-drawit-file-broker",
+          "markdownDescription": "Use native-picked, document-bound directory handles"
+        },
+        {
           "description": "Allows the desktop shell to read the local drawit session descriptor.",
           "type": "string",
           "const": "allow-drawit-session",

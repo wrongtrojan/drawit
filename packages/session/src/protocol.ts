@@ -4,7 +4,8 @@ import { z } from "zod/v4";
 
 export const clientMessageSchema = z.object({
   requestId: z.string().min(1).max(100), token: z.string().min(1).max(128),
-  type: z.enum(["get", "subscribe", "create", "open", "import", "reload", "save", "list", "setView", "validate", "log", "apply", "preview", "undo", "redo", "layout", "render", "review"]),
+  type: z.enum(["get", "subscribe", "create", "open", "import", "reload", "reloadSnapshot", "save", "prepareSave", "completeSave", "cancelSave", "list", "setView", "validate", "log", "apply", "preview", "undo", "redo", "layout", "render", "review"]),
+  snapshotId: z.string().max(100).optional(),
   title: z.string().min(1).max(200).optional(), documentId: idSchema.optional(), expectedDocumentId: idSchema.optional(),
   expectedRevision: z.number().int().nonnegative().safe().optional(), operations: z.array(z.unknown()).max(200).optional(), source: z.enum(["gui", "mcp"]).optional(),
   selection: z.array(idSchema).max(LIMITS.nodes + LIMITS.edges).optional(),
@@ -44,6 +45,7 @@ export interface ClientMessage {
   selection?: string[];
   viewport?: Viewport;
   json?: unknown;
+  snapshotId?: string;
   direction?: "TB" | "LR" | "BT" | "RL";
   nodeSpacing?: number;
   rankSpacing?: number;
@@ -64,6 +66,8 @@ export interface SessionResponse {
   code?: string;
   message?: string;
   currentRevision?: number;
+  snapshotId?: string;
+  savedRevision?: number;
   issues?: Issue[];
   document?: DiagramDocument;
   revision?: number;
