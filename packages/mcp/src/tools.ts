@@ -49,7 +49,7 @@ export function registerDrawitTools(server: McpServer): void {
       description: "Read the structured diagram document. Use this before edits so you have the current revision and object ids. Does not modify the diagram.",
       inputSchema: z.object({ documentId: documentId.optional() }),
     },
-    async ({ documentId: id }) => text(compactResult(await invoke({ type: "get", documentId: id }))),
+    async ({ documentId: id }) => text(compactResult(await invoke({ type: "get", documentId: id }), true)),
   );
 
   server.registerTool(
@@ -140,7 +140,7 @@ export function registerDrawitTools(server: McpServer): void {
   server.registerTool(
     "diagram_apply_operations",
     {
-      description: "Apply an ordered batch of addNodes, updateNodes, deleteElements, connect, updateDocument, group, ungroup, align, distribute, or snapToGrid operations as one transaction. Requires expectedRevision. If any operation fails, the diagram is left unchanged. Example: {\"expectedRevision\":1,\"operations\":[{\"op\":\"snapToGrid\",\"nodeIds\":[\"start\"]}]}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
+      description: "Apply addNodes, updateNodes, deleteElements, connect, updateDocument, group, ungroup, align, distribute, snapToGrid, or arrangeRow as one transaction. arrangeRow preserves supplied nodeIds order, defaults gap to 60, aligns visual body centers, requires one parent, and rejects conflicting pinned anchors. Every content mutation requires expectedRevision. Failure leaves the diagram unchanged. Save dirty content before switching.",
       inputSchema: z.object({
         documentId: documentId.optional(),
         expectedRevision,

@@ -1,5 +1,7 @@
-import { contentSize } from "./contentLayout.js";
+import { contentSize, gridLayout } from "./contentLayout.js";
 import type { DiagramNode } from "./schema.js";
+import type { DiagramEdge } from "./schema.js";
+import { measureText } from "./text.js";
 
 export interface Box {
   x: number;
@@ -36,6 +38,11 @@ export function absoluteBox(nodes: DiagramNode[], node: DiagramNode): Box {
   return { x: origin.x, y: origin.y, width: projected.width, height: projected.height };
 }
 
+export function visualBodyBox(node: DiagramNode): Box {
+  if (node.type === "matrix" || node.type === "vector") { const grid = gridLayout(node); return { x: grid.padX, y: grid.padY, width: grid.bodyWidth, height: grid.bodyHeight }; }
+  return nodeConnectionBox({ ...node, ...contentSize(node) });
+}
+
 export function intersectionArea(a: Box, b: Box): number {
   const width = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
   const height = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
@@ -55,7 +62,7 @@ export function isAncestor(nodes: DiagramNode[], ancestorId: string, nodeId: str
   return false;
 }
 
-export function contentBounds(nodes: DiagramNode[], canvas: { width: number; height: number }): Box {
+export function contentBounds(nodes: DiagramNode[], canvas: { width: number; height: number }, edges: DiagramEdge[] = []): Box {
   let minX = 0;
   let minY = 0;
   let maxX = canvas.width;
@@ -66,6 +73,19 @@ export function contentBounds(nodes: DiagramNode[], canvas: { width: number; hei
     minY = Math.min(minY, box.y);
     maxX = Math.max(maxX, box.x + box.width);
     maxY = Math.max(maxY, box.y + box.height);
+  }
+  for (const edge of edges) {
+    const endpoints = edgeEndpoints(nodes, edge); if (!endpoints) continue;
+    const { source, target, sourceHandle, targetHandle } = endpoints;
+    const points = [source, target, ...(edge.waypoints ?? [])];
+    if (!edge.waypoints?.length && edge.router === "curved") points.push({ x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 - 30 });
+    if (!edge.waypoints?.length && edge.router === "bezier") {
+      const distance = Math.max(40, Math.abs(target.x - source.x) / 2);
+      for (const [point, side] of [[source, sourceHandle], [target, targetHandle]] as const) points.push({ x: point.x + (side === "left" ? -distance : side === "right" ? distance : 0), y: point.y + (side === "top" ? -distance : side === "bottom" ? distance : 0) });
+    }
+    const margin = (edge.width ?? 1.5) * 5;
+    for (const point of points) { minX = Math.min(minX, point.x - margin); minY = Math.min(minY, point.y - margin); maxX = Math.max(maxX, point.x + margin); maxY = Math.max(maxY, point.y + margin); }
+    if (edge.label) { const point = edgeLabelPosition(edge, source, target), width = measureText(edge.label, 12); minX = Math.min(minX, point.x - width / 2); maxX = Math.max(maxX, point.x + width / 2); minY = Math.min(minY, point.y - 16); maxY = Math.max(maxY, point.y + 4); }
   }
   return { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) };
 }

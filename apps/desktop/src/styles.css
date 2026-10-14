@@ -95,3 +95,7 @@ legend { font-weight: 600; color: #475569; padding-right: 8px; }
 .error-recovery.application { min-height: 100vh; justify-content: center; align-items: center; }
 .error-recovery.node { font-size: 12px; height: 100%; box-sizing: border-box; }
 .app.is-offline .palette, .app.is-offline .properties, .app.is-offline .toolbar { pointer-events: none; opacity: .6; }
+@font-face { font-family: 'Noto Sans SC'; src: url('../../../assets/fonts/NotoSansSC-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Noto Sans SC'; src: url('../../../assets/fonts/NotoSansSC-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Noto Sans'; src: url('../../../assets/fonts/NotoSans-Regular.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Noto Sans'; src: url('../../../assets/fonts/NotoSans-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }

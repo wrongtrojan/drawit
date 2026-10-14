@@ -11,7 +11,7 @@ interface ToolbarProps {
   onExport: (format: "svg" | "png") => void;
   onDelete: () => void; onDuplicate: () => void; onGroup: () => void; onUngroup: () => void;
   onLayer: (delta: number) => void;
-  onArrange: (op: "align" | "distribute" | "snapToGrid", axis?: string) => void;
+  onArrange: (op: "align" | "distribute" | "snapToGrid" | "arrangeRow", axis?: string) => void;
 }
 
 const paths: Record<string, string> = {
@@ -56,6 +56,7 @@ export function Toolbar(props: ToolbarProps) {
       <button onClick={() => props.onArrange("distribute", "horizontal")}>水平分布</button>
       <button onClick={() => props.onArrange("distribute", "vertical")}>垂直分布</button>
       <button onClick={() => props.onArrange("snapToGrid")}>吸附到网格</button>
+      <button onClick={() => props.onArrange("arrangeRow")}>同一行排列 · 间距 60</button>
       <hr /><button onClick={() => props.onLayout("TB")}>自动布局 · 自上而下</button>
       <button onClick={() => props.onLayout("LR")}>自动布局 · 从左到右</button>
     </div></details>

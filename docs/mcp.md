@@ -32,6 +32,8 @@ pnpm dev
 
 ## 调用顺序
 
+`diagram_get` 返回完整 `document`（含标题、画布、语义字段及样式），`diagram_get_view` 返回选择、视口和绝对坐标投影。两者都提供当前 revision。MCP 保存和导出仍限于数据目录，不接受桌面目录句柄或任意绝对路径。
+
 1. `diagram_catalog` 查询组件类型、适用场景、属性 schema、必填字段和最小示例。
 2. `diagram_get` 或 `diagram_get_view` 读取当前版本和对象 ID。
 3. 用写工具做局部修改，并带上 `expectedRevision`。一批操作一次提交；失败则整批回滚。

@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Local editor permissions",
   "windows": ["main"],
-  "permissions": ["core:default", "allow-drawit-session", "allow-drawit-diagnostic", "allow-drawit-file-broker"]
+  "permissions": ["core:default", "core:window:allow-destroy", "allow-drawit-session", "allow-drawit-diagnostic", "allow-drawit-file-broker", "allow-drawit-confirmation"]
 }

@@ -1,7 +1,10 @@
 type Context = { documentId?: string; revision?: number; nodeId?: string; operations?: string[] };
 let context: Context = {};
 const records: unknown[] = [];
-export function diagnosticContext(value: Context) { context = value; }
+export function diagnosticContext(value: Context) {
+  if (value.documentId && context.documentId !== value.documentId) context = {};
+  context = { ...context, ...value, operations: value.operations ? [...(context.operations ?? []), ...value.operations].slice(-20) : context.operations };
+}
 export function reportError(error: unknown, componentStack?: string, extra: Context = {}) {
   const record = { at: new Date().toISOString(), name: error instanceof Error ? error.name : "Error", stack: error instanceof Error ? error.stack?.split("\n").slice(1, 10).join("\n") : undefined, componentStack: componentStack?.slice(0, 3000), ...context, ...extra };
   records.push(record); if (records.length > 200) records.shift();

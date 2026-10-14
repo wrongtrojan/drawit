@@ -2,6 +2,7 @@ import type { SessionResponse } from "@drawit/session/protocol";
 type Requester = { request: (body: Record<string, unknown>) => Promise<SessionResponse> };
 export type NativeInvoke = <T>(command: string, args: Record<string, unknown>) => Promise<T>;
 export function nativeInvoke(): NativeInvoke | undefined { return (window as unknown as { __TAURI_INTERNALS__?: { invoke: NativeInvoke } }).__TAURI_INTERNALS__?.invoke; }
+export async function confirmAction(message: string): Promise<boolean> { const invoke = nativeInvoke(); return invoke ? invoke<boolean>("drawit_confirm_action", { message }) : window.confirm(message); }
 type Choice = { handle: string; path: string };
 type Receipt = { path: string; revision: number };
 const checked = (response: SessionResponse) => { if (!response.ok) throw new Error(response.message ?? "文件操作失败"); return response; };

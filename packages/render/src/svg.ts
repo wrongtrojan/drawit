@@ -5,6 +5,7 @@ import {
   absolutePosition,
   contentBounds,
   nodePlainText,
+  resolveNodeStyle, styledNodes, ACADEMIC,
   wrapText,
   type DiagramDocument,
   type DiagramEdge,
@@ -36,6 +37,7 @@ function fontSize(node: DiagramNode): number {
 }
 
 function textBlock(text: string, x: number, y: number, width: number, height: number, size: number, fill: string, family: string): string {
+  if (family === "Noto Sans SC") family += ", Noto Sans";
   const lines = wrapText(text, size, Math.max(8, width));
   const block = lines.length * size * 1.25;
   let cursor = y + Math.max(size, (height - block) / 2 + size);
@@ -55,6 +57,8 @@ function points(pairs: Array<[number, number]>): string {
 
 function localShape(node: DiagramNode, fill: string, stroke: string, strokeWidth: number): string {
   const { width, height } = node;
+  if (node.style?.role === "title") return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="24" fill="${fill}" stroke="${stroke}" stroke-width="1"/>`;
+  if ((node.type === "equation" || node.style?.role === "operator" || node.style?.role === "variable") && strokeWidth === 0) return "";
   switch (node.type) {
     case "lifeline":
       return `<rect x="1" y="1" width="${width - 2}" height="42" rx="4" fill="${fill}" stroke="${stroke}"/><line x1="${width / 2}" y1="44" x2="${width / 2}" y2="${height}" stroke="${stroke}" stroke-dasharray="6 4"/>`;
@@ -108,7 +112,7 @@ function localShape(node: DiagramNode, fill: string, stroke: string, strokeWidth
   }
 }
 
-function gridBody(node: Extract<DiagramNode, { type: "matrix" | "table" | "vector" | "array" | "stack" | "queue" }>, fill: string, stroke: string, textColor: string, family: string): string {
+function gridBody(node: Extract<DiagramNode, { type: "matrix" | "table" | "vector" | "array" | "stack" | "queue" }>, fill: string, stroke: string, textColor: string, family: string, options: RenderOptions): string {
   const grid = gridLayout(node);
   const parts: string[] = [];
   let y = grid.padY;
@@ -121,17 +125,33 @@ function gridBody(node: Extract<DiagramNode, { type: "matrix" | "table" | "vecto
         const width = grid.widths.slice(c, c + (merge?.columnSpan ?? 1)).reduce((sum, value) => sum + value, 0);
         const height = grid.heights.slice(r, r + (merge?.rowSpan ?? 1)).reduce((sum, value) => sum + value, 0);
         const hot = node.type === "matrix" ? node.highlightRows.includes(r) || node.highlightCols.includes(c) || node.highlightCells.some(([a, b]) => a === r && b === c) : "highlightIndex" in node && node.highlightIndex === (node.type === "stack" ? r : c);
-        const cellFill = hot ? "#fde68a" : node.type === "table" && r === 0 ? "#e2e8f0" : fill;
-        if (node.type !== "matrix" || hot) parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${cellFill}" ${node.type !== "matrix" ? `stroke="${stroke}"` : ""}/>`);
-        parts.push(textBlock(value, x + 8, y + 8, width - 16, height - 16, fontSize(node), textColor, family));
+        const mathematical = node.type === "matrix" || node.type === "vector";
+        const palette = { blue: "#93c5fd", pink: "#f9a8b3", green: "#86efac", neutral: "#cbd5e1" };
+        const cellFill = hot ? palette[node.style?.tone ?? "neutral"] : node.type === "table" && r === 0 ? "#e2e8f0" : fill;
+        parts.push(`<rect data-cell="${r},${c}" x="${x}" y="${y}" width="${width}" height="${height}" fill="${cellFill}" stroke="${mathematical ? ACADEMIC.grid : stroke}" stroke-width="1"/>`);
+        if (mathematical && node.cellFormat === "math" && options.equationRenderer) {
+          try { parts.push(`<g transform="translate(${x} ${y})">${options.equationRenderer({ id: `${node.id}_${r}_${c}`, type: "equation", latex: value, x: 0, y: 0, width, height, style: node.style })}</g>`); }
+          catch { options.onRenderError?.(node.id); parts.push(textBlock("?", x + 8, y + 8, width - 16, height - 16, fontSize(node), "#991b1b", family)); }
+        } else parts.push(textBlock(value, x + 8, y + 8, width - 16, height - 16, fontSize(node), textColor, family));
       }
       x += cellWidth;
     });
     y += grid.heights[r]!;
   });
-  if (node.type === "matrix" && node.bracket !== "none") {
-    const pair = node.bracket === "round" ? ["(", ")"] : node.bracket === "curly" ? ["{", "}"] : node.bracket === "pipe" ? ["|", "|"] : ["[", "]"];
-    pair.forEach((bracket, index) => parts.push(`<text x="${index ? node.width - 16 : 4}" y="${node.height / 2 + 10}" font-size="28" fill="${textColor}">${bracket}</text>`));
+  if (node.type === "matrix" || node.type === "vector") {
+    if (node.bracket !== "none") {
+      const top = grid.padY, bottom = top + grid.bodyHeight, middle = (top + bottom) / 2;
+      for (const right of [false, true]) {
+        const x = right ? grid.padX + grid.bodyWidth + 6 : grid.padX - 6, sign = right ? 1 : -1;
+        const path = node.bracket === "square" ? `M${x} ${top} h${sign * 8} V${bottom} h${-sign * 8}` : node.bracket === "pipe" ? `M${x} ${top} V${bottom}` : node.bracket === "round" ? `M${x} ${top} C${x + sign * 14} ${top + 12} ${x + sign * 14} ${bottom - 12} ${x} ${bottom}` : `M${x} ${top} q${sign * 10} 0 ${sign * 10} 10 V${middle - 10} q0 10 ${sign * 8} 10 q${-sign * 8} 0 ${-sign * 8} 10 V${bottom - 10} q0 10 ${-sign * 10} 10`;
+        parts.push(`<path data-bracket="${right ? "right" : "left"}" d="${path}" fill="none" stroke="${stroke}" stroke-width="1.5"/>`);
+      }
+    }
+    let rowY = grid.padY;
+    node.rowLabels.forEach((label, r) => { if (r < grid.heights.length) { parts.push(textBlock(label, 0, rowY, Math.max(8, grid.padX - (node.bracket === "none" ? 8 : 24)), grid.heights[r]!, 11, "#475569", family)); rowY += grid.heights[r]!; } });
+    let columnX = grid.padX;
+    node.columnLabels.forEach((label, c) => { if (c < grid.widths.length) { parts.push(textBlock(label, columnX, 0, grid.widths[c]!, 20, 11, "#475569", family)); columnX += grid.widths[c]!; } });
+    if (node.dimensionLabel) parts.push(textBlock(node.dimensionLabel, grid.padX + grid.bodyWidth + 24, grid.padY, node.width - grid.padX - grid.bodyWidth - 24, grid.bodyHeight, 11, "#475569", family));
   }
   return parts.join("");
 }
@@ -222,27 +242,29 @@ function semanticBody(node: DiagramNode, fill: string, stroke: string, textColor
 }
 
 export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}): string {
+  node = { ...node, style: resolveNodeStyle(node) };
   node = projectSemanticNode([node], node);
   const fill = color(node.style?.fill, isContainerNode(node) ? "#f8fafc" : node.type === "text" ? "transparent" : "#ffffff");
   const stroke = color(node.style?.stroke, "#1f2937");
   const textColor = color(node.style?.color, "#111827");
-  const family = node.style?.fontFamily ?? "Segoe UI, sans-serif";
+  const family = node.style?.fontFamily ?? ACADEMIC.fontFamily;
   const strokeWidth = node.style?.strokeWidth ?? 1.5;
   const parts = [localShape(node, fill, stroke, strokeWidth)];
   const semantic = semanticBody(node, fill, stroke, textColor, family);
   if (semantic !== null) { parts.push(semantic); } else if (node.type === "image" && node.src.startsWith("data:image/")) {
     parts.push(`<image href="${escapeXml(node.src)}" x="0" y="0" width="${node.width}" height="${node.height}"/>`);
-  } else if (node.type === "equation") {
+  } else if (node.type === "equation" || (node.type === "text" && node.style?.role === "variable")) {
+    const equation = node.type === "equation" ? node : { ...node, type: "equation" as const, latex: node.text };
     if (options.equationRenderer) {
-      try { parts.push(options.equationRenderer(node)); }
+      try { parts.push(options.equationRenderer(equation)); }
       catch { options.onRenderError?.(node.id); parts.push(textBlock("公式无法转换", 8, 8, node.width - 16, node.height - 16, 12, "#991b1b", family)); }
     } else if (options.equationMode === "text") {
-      parts.push(textBlock(node.latex, 8, 8, node.width - 16, node.height - 16, fontSize(node), textColor, family));
+      parts.push(textBlock(equation.latex, 8, 8, node.width - 16, node.height - 16, fontSize(node), textColor, family));
     } else {
       parts.push(textBlock("公式正在加载", 8, 8, node.width - 16, node.height - 16, 12, "#64748b", family));
     }
   } else if (node.type === "table") {
-    parts.push(gridBody(node, fill, stroke, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family, options));
   } else if (node.type === "lifeline") {
     parts.push(textBlock(node.text, 6, 4, node.width - 12, 34, fontSize(node), textColor, family));
   } else if (node.type === "message") {
@@ -250,13 +272,13 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
   } else if (node.type === "activation") {
     // An activation has no textual body.
   } else if (node.type === "matrix") {
-    parts.push(gridBody(node, fill, stroke, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family, options));
   } else if (node.type === "vector") {
-    parts.push(gridBody(node, fill, stroke, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family, options));
   } else if (node.type === "array" || node.type === "queue") {
-    parts.push(gridBody(node, fill, stroke, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family, options));
   } else if (node.type === "stack") {
-    parts.push(gridBody(node, fill, stroke, textColor, family));
+    parts.push(gridBody(node, fill, stroke, textColor, family, options));
   } else if (node.type === "tree") {
     parts.push(treeBody(node, fill, stroke, textColor, family));
   } else if (node.type === "graph") {
@@ -270,7 +292,7 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
     const top = node.type === "note" ? 16 : 8;
     parts.push(textBlock(text, 8, top, node.width - 16, node.height - top - 8, fontSize(node), textColor, family));
   }
-  return parts.join("");
+  return `<g font-weight="${node.style?.fontWeight ?? 400}" font-style="${node.style?.fontStyle ?? "normal"}">${parts.join("")}</g>`;
 }
 
 export function renderEdgePath(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, sourceSide: HandleSide | undefined, targetSide: HandleSide | undefined): string {
@@ -317,10 +339,11 @@ export function renderEdgeSvg(edge: DiagramEdge, source: { x: number; y: number 
 }
 
 export function renderDocumentSvg(document: DiagramDocument, options: RenderOptions = {}): string {
+  document = { ...document, nodes: styledNodes(document) };
   const padding = options.padding ?? 24;
-  const bounds = contentBounds(document.nodes.map((node) => projectSemanticNode(document.nodes, node)), document.canvas);
+  const bounds = contentBounds(document.nodes.map((node) => projectSemanticNode(document.nodes, node)), document.canvas, document.edges);
   const background = color(options.background ?? document.canvas.background, "#ffffff");
-  const family = document.styles?.fontFamily ?? "Segoe UI, sans-serif";
+  const family = document.styles?.fontFamily && document.styles.fontFamily !== "Segoe UI, sans-serif" ? document.styles.fontFamily : ACADEMIC.fontFamily;
   const edgeColor = color(document.styles?.edgeColor, "#334155");
   const projected = document.nodes.map((node) => projectSemanticNode(document.nodes, node));
   const nodes = [...projected].sort((a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0));
@@ -366,7 +389,7 @@ export function renderDocumentSvg(document: DiagramDocument, options: RenderOpti
 
 export function reviewManifest(document: DiagramDocument) {
   const projected = document.nodes.map((node) => projectSemanticNode(document.nodes, node));
-  const bounds = contentBounds(document.nodes.map((node) => projectSemanticNode(document.nodes, node)), document.canvas);
+  const bounds = contentBounds(document.nodes.map((node) => projectSemanticNode(document.nodes, node)), document.canvas, document.edges);
   return {
     documentId: document.documentId,
     revision: document.revision,

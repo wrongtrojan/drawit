@@ -43,7 +43,7 @@ try {
   mcp.stdin.write(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) + "\n");
   const tools = await call("tools/list"); assert(tools.result.tools.some((tool) => tool.name === "diagram_save"));
   const result = await call("tools/call", { name: "diagram_get", arguments: {} });
-  const document = JSON.parse(result.result.content[0].text); assert.equal(document.document.title, "二分查找");
+  const document = JSON.parse(result.result.content[0].text); assert.equal(result.result.isError, false); assert(document.document, "diagram_get must return a structured document"); assert.equal(document.document.title, "二分查找");
   const review = await call("tools/call", { name: "diagram_review_snapshot", arguments: {} });
   assert(review.result.content.some((content) => content.type === "image"));
   const exited = new Promise((resolve) => host.once("exit", resolve)); host.stdin.end();

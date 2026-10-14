@@ -20,6 +20,10 @@ export const nodeStyleSchema = z.object({
   fontSize: z.number().min(8).max(96).optional(),
   fontFamily: z.string().min(1).max(80).optional(),
   cornerRadius: z.number().min(0).max(200).optional(),
+  role: z.enum(["body", "title", "operator", "variable", "caption"]).optional(),
+  tone: z.enum(["neutral", "blue", "pink", "green"]).optional(),
+  fontWeight: z.number().int().min(100).max(900).optional(),
+  fontStyle: z.enum(["normal", "italic"]).optional(),
 });
 export type NodeStyle = z.infer<typeof nodeStyleSchema>;
 
@@ -111,6 +115,8 @@ const equationNodeSchema = z.object({
 const matrixNodeSchema = z.object({
   type: z.literal("matrix"),
   cells: z.array(z.array(z.string())).min(1),
+  cellFormat: z.enum(["plain", "math"]).default("plain"),
+  rowLabels: z.array(z.string()).default([]), columnLabels: z.array(z.string()).default([]), dimensionLabel: z.string().default(""),
   bracket: z.enum(["none", "round", "square", "curly", "pipe"]).default("square"),
   spacing: z.number().min(0).max(80).default(8),
   highlightRows: z.array(z.number().int().nonnegative()).default([]),
@@ -121,6 +127,8 @@ const matrixNodeSchema = z.object({
 const vectorNodeSchema = z.object({
   type: z.literal("vector"),
   components: z.array(z.string()).min(1),
+  cellFormat: z.enum(["plain", "math"]).default("plain"),
+  rowLabels: z.array(z.string()).default([]), columnLabels: z.array(z.string()).default([]), dimensionLabel: z.string().default(""), bracket: z.enum(["none", "round", "square", "curly", "pipe"]).default("square"),
   orientation: z.enum(["row", "column"]).default("column"),
   ...baseFields,
 });
@@ -329,7 +337,7 @@ export const NODE_FIELD_KEYS = [
   "vertices",
   "links",
   "directed",
-  "root", "headers", "merges", "sourceId", "messageKind", "lifelineId", "name", "attributes", "methods", "stereotype", "direction", "min", "max", "ticks", "shape", "milestones",
+  "root", "headers", "merges", "sourceId", "messageKind", "lifelineId", "name", "attributes", "methods", "stereotype", "direction", "min", "max", "ticks", "shape", "milestones", "cellFormat", "rowLabels", "columnLabels", "dimensionLabel",
 ] as const;
 
 export const EDGE_FIELD_KEYS = [

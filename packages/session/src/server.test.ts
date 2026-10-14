@@ -94,6 +94,19 @@ describe("session host", () => {
 });
 
 describe("session persistence", () => {
+  it("recovers acknowledged unsaved content after host restart without reporting it saved", async () => {
+    const home = await mkdtemp(join(tmpdir(), "drawit-recovery-"));
+    let host = await startSessionHost({ home }); let socket = await connect(host.port, host.token);
+    try {
+      const created = await call(socket, { type: "create", title: "recovery" });
+      await call(socket, { type: "apply", expectedRevision: 0, operations: [{ op: "addNodes", nodes: [{ type: "text", id: "unsaved", text: "未保存内容" }] }] });
+      socket.terminate(); await host.close();
+      host = await startSessionHost({ home }); socket = await connect(host.port, host.token);
+      const recovered = await call(socket, { type: "get" });
+      expect(recovered).toMatchObject({ ok: true, dirty: true, revision: 1, document: { documentId: created.document!.documentId } });
+      expect(recovered.document!.nodes[0]).toMatchObject({ id: "unsaved", text: "未保存内容" });
+    } finally { socket.terminate(); await host.close(); }
+  });
   it("completes an exact saved snapshot while keeping concurrent edits dirty and refuses reused tokens", async () => {
     const home = await mkdtemp(join(tmpdir(), "drawit-snapshot-")); const host = await startSessionHost({ home }); const socket = await connect(host.port, host.token);
     try {

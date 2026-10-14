@@ -31,8 +31,9 @@ function define(
   const propertySchema = z.toJSONSchema(schema, { io: "input" }) as Record<string, unknown>;
   const referenceExamples: Record<string, unknown> = type === "message" ? { sourceId: "client", targetId: "server" } : type === "activation" ? { lifelineId: "server" } : type === "annotation" ? { targetId: "target" } : ["array", "stack", "queue"].includes(type) ? { highlightIndex: 0 } : {};
   const example = { ...materializeNode({ type, ...partial, ...referenceExamples }, "example") };
+  const semanticFields = [...componentGuidance[type].semanticFields, ...(partial.style ? ["style"] : [])];
   return {
-    ...componentGuidance[type], propertySchema, requiredFields: componentGuidance[type].semanticFields, example: Object.fromEntries(Object.entries(example).filter(([key]) => ["id", "type", ...componentGuidance[type].semanticFields].includes(key))),
+    ...componentGuidance[type], semanticFields, usage: id === "math.title" ? "顶部居中的浅蓝标题胶囊，text 保存标题文字。" : id === "math.operator" ? "公式对象之间的运算符，例如 =、+ 或乘号，无外框。" : componentGuidance[type].usage, propertySchema, requiredFields: semanticFields, example: Object.fromEntries(Object.entries(example).filter(([key]) => ["id", "type", ...semanticFields].includes(key))),
     id,
     type,
     category,
@@ -80,6 +81,8 @@ export const componentRegistry: ComponentDefinition[] = [
   define("domain.tree", "tree", "data", "树", ["tree", "树"], {}),
   define("domain.graph", "graph", "data", "图", ["graph", "图"], {}),
   define("math.equation", "equation", "math", "公式", ["equation", "latex", "公式"], { latex: "E = mc^2" }),
+  define("math.title", "text", "math", "标题胶囊", ["title", "学术", "标题"], { text: "图标题", width: 480, height: 48, style: { role: "title" } }),
+  define("math.operator", "equation", "math", "运算符", ["operator", "运算符", "等号", "加法"], { latex: "=", width: 40, height: 48, style: { role: "operator" } }),
   define("math.matrix", "matrix", "math", "矩阵", ["matrix", "矩阵"], {}),
   define("math.vector", "vector", "math", "向量", ["vector", "向量"], {}),
   define("math.brace", "brace", "math", "括号", ["brace", "括号"], { label: "n" }),
@@ -99,7 +102,7 @@ export function componentById(id: string): ComponentDefinition | undefined {
 }
 
 export const stylePresets = {
-  default: { fill: "#ffffff", stroke: "#1f2937", color: "#111827" },
+  default: { tone: "neutral", stroke: "#172033", color: "#172033" },
   muted: { fill: "#f1f5f9", stroke: "#94a3b8", color: "#334155" },
   emphasis: { fill: "#dbeafe", stroke: "#1d4ed8", color: "#1e3a8a" },
   query: { fill: "#dbeafe", stroke: "#1d4ed8", color: "#1e3a8a" },

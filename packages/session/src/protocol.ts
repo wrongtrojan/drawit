@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 export const clientMessageSchema = z.object({
   requestId: z.string().min(1).max(100), token: z.string().min(1).max(128),
-  type: z.enum(["get", "subscribe", "create", "open", "import", "reload", "reloadSnapshot", "save", "prepareSave", "completeSave", "cancelSave", "list", "setView", "validate", "log", "apply", "preview", "undo", "redo", "layout", "render", "review"]),
+  type: z.enum(["get", "subscribe", "create", "open", "import", "reload", "reloadSnapshot", "save", "prepareSave", "completeSave", "cancelSave", "list", "delete", "setView", "validate", "log", "apply", "preview", "undo", "redo", "layout", "render", "review"]),
   snapshotId: z.string().max(100).optional(),
   title: z.string().min(1).max(200).optional(), documentId: idSchema.optional(), expectedDocumentId: idSchema.optional(),
   expectedRevision: z.number().int().nonnegative().safe().optional(), operations: z.array(z.unknown()).max(200).optional(), source: z.enum(["gui", "mcp"]).optional(),

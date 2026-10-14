@@ -18,7 +18,7 @@ function ShapeContent({ data, selected }: { data: ShapeData; selected?: boolean 
   const [error, setError] = useState(false);
   const key = JSON.stringify(node);
   useEffect(() => {
-    if (node.type !== "equation") return;
+    if (node.type !== "equation" && !((node.type === "matrix" || node.type === "vector") && node.cellFormat === "math") && !(node.type === "text" && node.style?.role === "variable")) return;
     let cancelled = false; setError(false);
     void formulas.render(node).then((markup) => { if (!cancelled) setFormula({ key, markup }); }, (reason) => { if (!cancelled) { setError(true); reportError(reason, undefined, { nodeId: node.id }); } });
     return () => { cancelled = true; };
@@ -26,7 +26,7 @@ function ShapeContent({ data, selected }: { data: ShapeData; selected?: boolean 
   return (
     <div className={`shape-node ${selected ? "is-selected" : ""}`}>
       <NodeResizer isVisible={selected} minWidth={48} minHeight={32} />
-      {error ? <div className="error-recovery node" role="alert">公式无法转换；可在属性中修改 LaTeX。</div> : <svg viewBox={`0 0 ${node.width} ${node.height}`} width="100%" height="100%" dangerouslySetInnerHTML={{ __html: node.type === "equation" && formula?.key === key ? formula.markup : renderNodeInner(node) }} />}
+      {error ? <div className="error-recovery node" role="alert">公式无法转换；可在属性中修改 LaTeX。</div> : <svg viewBox={`0 0 ${node.width} ${node.height}`} width="100%" height="100%" dangerouslySetInnerHTML={{ __html: formula?.key === key ? formula.markup : renderNodeInner(node) }} />}
       {(["top", "right", "bottom", "left"] as const).map((side) => (
         <Handle key={side} id={side} type="source" position={positionFor(side)} style={handleStyle(node, side)} />
       ))}

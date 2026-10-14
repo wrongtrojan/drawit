@@ -1,4 +1,4 @@
-import { absolutePosition, projectSemanticNode, isContainerNode, edgeEndpoints, createId, type DiagramDocument, type DiagramEdge, type DiagramNode, type DiagramOperation } from "@drawit/core";
+import { absolutePosition, projectSemanticNode, isContainerNode, edgeEndpoints, createId, styledNodes, type DiagramDocument, type DiagramEdge, type DiagramNode, type DiagramOperation } from "@drawit/core";
 import type { Edge, Node } from "@xyflow/react";
 
 export function orderNodes(nodes: DiagramNode[]): DiagramNode[] {
@@ -20,7 +20,8 @@ export function orderNodes(nodes: DiagramNode[]): DiagramNode[] {
 }
 
 export function toFlowNodes(document: DiagramDocument, selection: string[]): Node[] {
-  return orderNodes(document.nodes.map((node) => projectSemanticNode(document.nodes, node))).map((node) => ({
+  const visual = styledNodes(document);
+  return orderNodes(visual.map((node) => projectSemanticNode(visual, node))).map((node) => ({
     id: node.id,
     type: "drawit",
     position: { x: node.x, y: node.y },

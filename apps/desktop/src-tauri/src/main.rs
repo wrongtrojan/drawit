@@ -28,6 +28,8 @@ impl Drop for SessionProcess {
 
 struct DesktopConfig {
     home: PathBuf,
+    runtime: Option<PathBuf>,
+    last_restart: Mutex<std::time::Instant>,
     mcp: serde_json::Value,
 }
 
@@ -96,19 +98,82 @@ fn main() {
                 (Some(child), plain_path(&std::env::current_exe()?).to_string_lossy().into_owned(), vec!["--mcp".to_string(), "--runtime".to_string(), runtime.to_string_lossy().into_owned()])
             };
             app.manage(SessionProcess(Mutex::new(child)));
-            app.manage(DesktopConfig { home: home.clone(), mcp: serde_json::json!({ "mcpServers": { "drawit": { "command": command, "args": arguments, "env": { "DRAWIT_HOME": home } } } }) });
+            app.manage(DesktopConfig { home: home.clone(), runtime: if cfg!(debug_assertions) { None } else { Some(runtime) }, last_restart: Mutex::new(std::time::Instant::now()), mcp: serde_json::json!({ "mcpServers": { "drawit": { "command": command, "args": arguments, "env": { "DRAWIT_HOME": home } } } }) });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![drawit_session, drawit_mcp_config, drawit_diagnostic, files::drawit_choose_directory, files::drawit_write_artifact, files::drawit_external_file])
-        .run(tauri::generate_context!())
-        .expect("error while running drawit");
+        .invoke_handler(tauri::generate_handler![drawit_session, drawit_mcp_config, drawit_diagnostic, drawit_confirm_action, files::drawit_choose_directory, files::drawit_write_artifact, files::drawit_external_file])
+        .build(tauri::generate_context!())
+        .expect("error while building drawit")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { api, code: None, .. } = event {
+                // Route Cmd+Q/menu quit through the same unsaved-close protection.
+                if let Some(window) = app.get_webview_window("main") {
+                    api.prevent_exit();
+                    let _ = window.close();
+                }
+            }
+        });
 }
 
 #[tauri::command]
-fn drawit_session(config: tauri::State<'_, DesktopConfig>) -> Result<serde_json::Value, String> {
+fn drawit_session(
+    config: tauri::State<'_, DesktopConfig>,
+    process: tauri::State<'_, SessionProcess>,
+) -> Result<serde_json::Value, String> {
+    if let Some(runtime) = &config.runtime {
+        let mut owned = process.0.lock().map_err(|e| e.to_string())?;
+        let exited = match owned.as_mut() {
+            Some(child) => child.try_wait().map_err(|e| e.to_string())?.is_some(),
+            None => true,
+        };
+        if exited {
+            let mut last = config.last_restart.lock().map_err(|e| e.to_string())?;
+            if last.elapsed() < std::time::Duration::from_secs(2) {
+                return Err("绘图会话已退出，正在等待重新启动".into());
+            }
+            *last = std::time::Instant::now();
+            let stderr = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(config.home.join("session.log"))
+                .map(Stdio::from)
+                .unwrap_or(Stdio::null());
+            *owned = Some(
+                runtime_command(runtime, "session.cjs")
+                    .env("DRAWIT_HOME", &config.home)
+                    .env("DRAWIT_MANAGED_SESSION", "1")
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::null())
+                    .stderr(stderr)
+                    .spawn()
+                    .map_err(|e| e.to_string())?,
+            );
+            return Err("绘图会话正在重新启动，请稍候".into());
+        }
+    }
     let text = std::fs::read_to_string(config.home.join("session.json"))
         .map_err(|error| error.to_string())?;
     serde_json::from_str(&text).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn drawit_confirm_action(app: tauri::AppHandle, message: String) -> Result<bool, String> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    if message.chars().count() > 500 {
+        return Err("确认文字超过长度限制".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .message(message)
+            .title("drawit")
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "确认".into(),
+                "取消".into(),
+            ))
+            .blocking_show()
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -139,6 +204,7 @@ fn drawit_diagnostic(
         "documentId",
         "revision",
         "nodeId",
+        "operations",
     ] {
         if let Some(value) = record.get(key) {
             if let Some(text) = value.as_str() {
@@ -148,6 +214,18 @@ fn drawit_diagnostic(
                 );
             } else if value.is_u64() {
                 clean.insert(key.to_string(), value.clone());
+            } else if key == "operations" {
+                if let Some(items) = value.as_array() {
+                    clean.insert(
+                        key.into(),
+                        serde_json::json!(items
+                            .iter()
+                            .take(20)
+                            .filter_map(|item| item.as_str())
+                            .map(|text| text.chars().take(50).collect::<String>())
+                            .collect::<Vec<_>>()),
+                    );
+                }
             }
         }
     }

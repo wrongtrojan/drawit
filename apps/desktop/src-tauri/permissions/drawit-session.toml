@@ -3,6 +3,10 @@ identifier = "allow-drawit-session"
 description = "Allows the desktop shell to read the local drawit session descriptor."
 commands.allow = ["drawit_session", "drawit_mcp_config"]
 [[permission]]
+identifier = "allow-drawit-confirmation"
+description = "Confirm user initiated destructive actions and unsaved window closure"
+commands.allow = ["drawit_confirm_action"]
+[[permission]]
 identifier = "allow-drawit-diagnostic"
 description = "Write bounded local UI failure diagnostics"
 commands.allow = ["drawit_diagnostic"]

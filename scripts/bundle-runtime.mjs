@@ -9,6 +9,7 @@ const { build } = require("esbuild");
 const out = join(root, "apps/desktop/src-tauri/runtime");
 await rm(out, { recursive: true, force: true });
 await mkdir(join(out, "node_modules/@resvg"), { recursive: true });
+await cp(join(root, "assets/fonts"), join(out, "fonts"), { recursive: true });
 // Bundle on the target OS/architecture. The installed app uses this private runtime.
 const nodeName = process.platform === "win32" ? "node.exe" : "node";
 await cp(process.execPath, join(out, nodeName));

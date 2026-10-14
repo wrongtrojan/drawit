@@ -1,5 +1,6 @@
 import { DrawitError } from "./errors.js";
 import { checkInputBudget } from "./limits.js";
+import { ACADEMIC } from "./academic.js";
 import { createId, isRecord } from "./ids.js";
 import {
   DOCUMENT_FIELD_KEYS,
@@ -26,8 +27,8 @@ const SIZES: Record<NodeType, { width: number; height: number }> = {
   container: { width: 320, height: 220 },
   image: { width: 160, height: 120 },
   equation: { width: 220, height: 72 },
-  matrix: { width: 180, height: 120 },
-  vector: { width: 80, height: 140 },
+  matrix: { width: 116, height: 96 },
+  vector: { width: 96, height: 96 },
   brace: { width: 36, height: 140 },
   annotation: { width: 160, height: 48 },
   flowchart: { width: 170, height: 72 },
@@ -200,7 +201,7 @@ export function createDocument(title = "未命名图示", documentId = createId(
     canvas: { width: 1400, height: 900, background: "#ffffff", gridSize: 20 },
     nodes: [],
     edges: [],
-    styles: { fontFamily: "Segoe UI, sans-serif", nodeFill: "#ffffff", nodeStroke: "#1f2937", edgeColor: "#334155" },
+    styles: { fontFamily: ACADEMIC.fontFamily, nodeFill: "#ffffff", nodeStroke: ACADEMIC.ink, edgeColor: ACADEMIC.ink },
   });
 }
 

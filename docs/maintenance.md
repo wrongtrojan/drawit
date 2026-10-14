@@ -108,6 +108,8 @@ pnpm --filter @drawit/desktop build
 
 `documents/*.drawit.json` 是工程，`exports/` 是导出，`session.json` 是端口和令牌。保存先写临时文件再替换。路径限制在文档目录和导出目录之内。
 
+`documents/.session-recovery.json` 是会话确认修改后的恢复副本，不参与工程列表。Host 重启时，只有对应工程仍存在且恢复版本更高（或内容一致）才采用它；文件已删除或外部版本更新时不复活旧工程。恢复副本不代表用户选择的外部文件已保存，控制器以内部正式工程为已保存基线。写入恢复副本失败作为警告返回。
+
 ## 打包
 
 在目标系统和 CPU 架构上执行 `pnpm --filter @drawit/desktop tauri build`。构建会生成图标，打入当前平台的 Node 与 resvg，并把 MCP 和 Session Host 打成 CJS。安装后的桌面壳负责启动和关闭 Host，发布版不弹出控制台。Windows 上 Tauri 给出的程序路径带 `\\?\` 前缀，交给 Node 之前要去掉，否则会话脚本无法启动。会话进程的标准错误写到数据目录的 `session.log`。复制出来的 MCP 配置使用 `--mcp --runtime <安装资源目录>`。
@@ -145,3 +147,13 @@ node scripts/stress-session.mjs --home=/absolute/test-home --iterations=10000 --
 桌面使用 prepareSave 获取快照、原生写外部文件、completeSave 写内部副本。快照有数量上限及五分钟有效期；失败或取消释放快照。markSavedSnapshot 记录写出的内容，保存期间的新修订不会误标已保存。外部文件检测只通知，reloadSnapshot 验证 id 并增加 revision 后显式替换。
 
 原生代理单测：`cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml`。未添加通用 fs 权限或前端 dialog 权限；仅主窗口可调用受约束的代理命令。
+
+## 学术图形与依赖
+
+统一参数在 `packages/core/src/academic.ts`，样式角色、数学单元格及标签由 schema 和事务处理。几何投影必须保持重复计算尺寸一致，不能二次渲染后继续撑高矩阵。`arrangeRow` 对同父节点显式执行，固定锚点冲突回滚。
+
+图内字体位于 `assets/fonts`。浏览器随包加载，resvg 显式加载；SVG 导出按用字嵌入 TTF 子集与 OFL，保留文字对象。`scripts/font-metrics.mjs` 从随包字体生成普通文字宽度表；MathJax 负责公式路径。参考、字段及六图验收见 [academic-style.md](academic-style.md)。
+
+测试使用 Vitest 4.1.11；MathJax 的间接 xmldom 依赖通过工作区 override 升至修复版。`pnpm audit` 和 `pnpm audit --prod` 本轮均无已知漏洞。这是当前公告库的结果，不意味着没有未知问题。
+
+远端 `b063306` 已合并：保留 16 条代表场景、工程删除和四种角色色；删除请求接入严格消息校验与路径检查。`diagram_get` 返回完整工程，`diagram_get_view` 用于投影信息；成功的工具结果不标错误。压力测试按使用者要求提前停止，完整 10,000 次/30 分钟关卡保留为未完成。

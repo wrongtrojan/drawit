@@ -104,7 +104,7 @@ export function validateDocument(document: DiagramDocument): Issue[] {
     }
     seen.add(node.id);
     if (node.type === "image" && imageUnsafe(node.src)) {
-      issues.push(issue("error", "UNSAFE_IMAGE", `Image ${node.id} must be an inline PNG, JPEG, GIF, WEBP, or SVG data URL`, node.id));
+      issues.push(issue("error", "UNSAFE_IMAGE", `Image ${node.id} must be an inline PNG, JPEG, GIF, or WEBP data URL`, node.id));
     }
     if (node.type === "axis" && (node.min >= node.max || node.ticks.some((tick) => tick.value < node.min || tick.value > node.max) || new Set(node.ticks.map((tick) => tick.value)).size !== node.ticks.length)) {
       issues.push(issue("error", "INVALID_AXIS", `Axis ${node.id} requires min < max and distinct ticks within its range`, node.id));
@@ -120,6 +120,11 @@ export function validateDocument(document: DiagramDocument): Issue[] {
       if (columns === 0 || node.cells.some((row) => row.length !== columns)) {
         issues.push(issue("error", "INVALID_MATRIX", `Matrix ${node.id} must be rectangular and non-empty`, node.id));
       }
+    }
+    if (node.type === "matrix" || node.type === "vector") {
+      const rows = node.type === "matrix" ? node.cells.length : node.orientation === "column" ? node.components.length : 1;
+      const columns = node.type === "matrix" ? node.cells[0]?.length ?? 0 : node.orientation === "column" ? 1 : node.components.length;
+      if (node.rowLabels.length > rows || node.columnLabels.length > columns) issues.push(issue("error", "INVALID_GRID_LABELS", "Grid labels cannot exceed the row/column count", node.id));
     }
     if (node.type === "graph") {
       const vertexIds = new Set<string>();

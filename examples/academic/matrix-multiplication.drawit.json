@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "documentId": "doc_matrix_multiplication",
+  "revision": 0,
+  "title": "矩阵乘法",
+  "canvas": {
+    "width": 1200,
+    "height": 512,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "1",
+          "2",
+          "3"
+        ],
+        [
+          "4",
+          "5",
+          "6"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [
+        "i=1",
+        "i=2"
+      ],
+      "columnLabels": [
+        "1",
+        "2",
+        "3"
+      ],
+      "dimensionLabel": "2 × 3",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [
+        0
+      ],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "a",
+      "x": 40,
+      "y": 166,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "blue"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\times",
+      "id": "times",
+      "x": 335.37300000000005,
+      "y": 206,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "7",
+          "8"
+        ],
+        [
+          "9",
+          "10"
+        ],
+        [
+          "11",
+          "12"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [
+        "1",
+        "2",
+        "3"
+      ],
+      "columnLabels": [
+        "j=1",
+        "j=2"
+      ],
+      "dimensionLabel": "3 × 2",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [
+        0
+      ],
+      "highlightCells": [],
+      "id": "b",
+      "x": 431.37300000000005,
+      "y": 146,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "pink"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "=",
+      "id": "equals",
+      "x": 677.616,
+      "y": 206,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "58",
+          "64"
+        ],
+        [
+          "139",
+          "154"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [
+        "1",
+        "2"
+      ],
+      "columnLabels": [
+        "1",
+        "2"
+      ],
+      "dimensionLabel": "2 × 2",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [
+        [
+          0,
+          0
+        ]
+      ],
+      "id": "c",
+      "x": 773.616,
+      "y": 166,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "green"
+      }
+    },
+    {
+      "type": "text",
+      "text": "A",
+      "id": "a_label",
+      "x": 40,
+      "y": 116,
+      "width": 235.37300000000002,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "B",
+      "id": "b_label",
+      "x": 431.37300000000005,
+      "y": 96,
+      "width": 186.243,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "C = AB",
+      "id": "c_label",
+      "x": 773.616,
+      "y": 116,
+      "width": 186.243,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "c_{11}=\\sum_{k=1}^{3}a_{1k}b_{k1}=1\\times7+2\\times9+3\\times11=58",
+      "id": "sum",
+      "x": 40,
+      "y": 360,
+      "width": 1120,
+      "height": 64,
+      "style": {
+        "fontSize": 18
+      }
+    },
+    {
+      "type": "text",
+      "text": "蓝色第 1 行与粉色第 1 列做内积，得到绿色结果格；中间维 3 一致。",
+      "id": "note",
+      "x": 40,
+      "y": 440,
+      "width": 1100,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "矩阵乘法 · Matrix Multiplication",
+      "id": "title",
+      "x": 340,
+      "y": 28,
+      "width": 520,
+      "height": 48,
+      "style": {
+        "role": "title"
+      }
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Noto Sans SC",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#172033",
+    "edgeColor": "#172033"
+  }
+}

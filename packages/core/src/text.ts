@@ -15,7 +15,7 @@ export function wrapText(text: string, fontSize: number, maxWidth: number): stri
       let space = -1;
       while (end < chars.length) {
         const char = chars[end]!;
-        const charWidth = /[\u2e80-\uffff]/u.test(char) || char.codePointAt(0)! > 0xffff ? fontSize : estimateCharWidth(fontSize);
+        const charWidth = textAdvance(char, fontSize);
         if (measured + charWidth > width && end > offset) break;
         measured += charWidth;
         if (char === " ") space = end;
@@ -37,3 +37,6 @@ export function lineHeight(fontSize: number): number {
 export function textBlockHeight(lineCount: number, fontSize: number): number {
   return Math.max(1, lineCount) * lineHeight(fontSize);
 }
+import { fontAdvances } from "./fontMetrics.js";
+export function textAdvance(char: string, size: number): number { return size * (fontAdvances[char.codePointAt(0)!] ?? 1); }
+export function measureText(value: string, size = 14): number { return Math.max(0, ...value.split(/\r?\n/).map((line) => Array.from(line).reduce((sum, char) => sum + textAdvance(char, size), 0))); }

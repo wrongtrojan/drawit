@@ -12,7 +12,7 @@ import type { SessionResponse } from "@drawit/session/protocol";
 import { StatusBar } from "./StatusBar.js";
 import { isEditingTarget, isMac, shortcut, type EditorAction } from "./keyboard.js";
 import { Toolbar } from "./Toolbar.js";
-import { saveDocument, exportDocument, externalFile, nativeInvoke } from "./nativeFiles.js";
+import { saveDocument, exportDocument, externalFile, nativeInvoke, confirmAction } from "./nativeFiles.js";
 
 export function App() {
   const socket = useRef(new EditorSocket());
@@ -37,6 +37,8 @@ export function App() {
   const [externalNative, setExternalNative] = useState(false);
   const [savePath, setSavePath] = useState<string | null>(null);
   const fileBusy = useRef(false);
+  const dirtyRef = useRef(false); dirtyRef.current = dirty;
+  const readyRef = useRef(false); readyRef.current = connected;
   const [mcpConfig, setMcpConfig] = useState<string | null>(null);
 
   const select = useCallback((ids: string[]) => {
@@ -70,7 +72,8 @@ export function App() {
   }, []);
 
   const apply = useCallback(async (operations: DiagramOperation[]) => {
-    if (!operations.length || !socket.current.connected) return;
+    if (!operations.length || !readyRef.current || !socket.current.connected) return;
+    diagnosticContext({ operations: operations.map((operation) => operation.op) });
     const response = await socket.current.request({ type: "apply", expectedDocumentId: documentId.current, expectedRevision: revision.current, operations, source: "gui" }).catch((error) => { setMessage(error instanceof Error ? error.message : "会话请求失败"); return null; });
     if (!response) return;
     if (!response.ok) {
@@ -86,6 +89,27 @@ export function App() {
     setMessage(response.operationId ? `已应用 ${response.operationId}` : "已更新");
     await refreshLog();
   }, [accept, refreshLog]);
+
+  useEffect(() => {
+    let cancelled = false, confirming = false; let unlisten: (() => void) | undefined;
+    if (nativeInvoke()) void import("@tauri-apps/api/window").then(async ({ getCurrentWindow }) => {
+      const current = getCurrentWindow();
+      const stop = await current.onCloseRequested(async (event) => {
+        if (!dirtyRef.current && !fileBusy.current) return;
+        event.preventDefault();
+        if (fileBusy.current) { setMessage("正在保存或导出，请完成后关闭窗口"); return; }
+        if (confirming) return;
+        confirming = true;
+        try { if (await confirmAction("工程有未保存的修改。确认放弃这些修改并关闭窗口？")) await current.destroy(); }
+        catch { setMessage("无法确认关闭；请先保存工程"); }
+        finally { confirming = false; }
+      });
+      if (cancelled) stop(); else unlisten = stop;
+    }).catch(() => setMessage("关闭保护未就绪；请先保存工程"));
+    const beforeUnload = (event: BeforeUnloadEvent) => { if (dirtyRef.current || fileBusy.current) { event.preventDefault(); event.returnValue = ""; } };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => { cancelled = true; unlisten?.(); window.removeEventListener("beforeunload", beforeUnload); };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -278,6 +302,7 @@ export function App() {
         onPaste={() => void action("paste")}
         onArrange={(op, axis) => {
           const nodeIds = selection.filter((id) => document.nodes.some((node) => node.id === id));
+          if (op === "arrangeRow" && nodeIds.length >= 2) void apply([{ op, gap: 60, nodeIds: document.nodes.filter((node) => nodeIds.includes(node.id)).sort((a, b) => a.x - b.x || a.id.localeCompare(b.id)).map((node) => node.id) }]);
           if (op === "snapToGrid" && nodeIds.length) void apply([{ op, nodeIds }]);
           if (op === "align" && nodeIds.length >= 2) void apply([{ op, nodeIds, axis: axis as "left" | "center" | "right" | "top" | "middle" | "bottom" }]);
           if (op === "distribute" && nodeIds.length >= 3) void apply([{ op, nodeIds, axis: axis as "horizontal" | "vertical" }]);
@@ -371,16 +396,16 @@ export function App() {
             <button className="document-open" disabled={dirty && item.documentId !== document.documentId} onClick={() => {
               void request({ type: "open", documentId: item.documentId, source: "gui" }, `已打开 ${item.title}`).then(() => setDocuments(null));
             }}><strong>{item.title}</strong><span>版本 {item.revision} · {item.documentId}</span></button>
-            <button className="document-delete" aria-label={`删除 ${item.title}`} onClick={() => {
+            <button className="document-delete" aria-label={`删除 ${item.title}`} onClick={() => void (async () => {
               const removingCurrent = item.documentId === document.documentId;
-              if (!window.confirm(removingCurrent && dirty ? `删除「${item.title}」？未保存的修改会丢掉。` : `删除「${item.title}」？`)) return;
-              void socket.current.request({ type: "delete", documentId: item.documentId, source: "gui" }).then((response) => {
+              if (!await confirmAction(removingCurrent && dirty ? `删除「${item.title}」？未保存的修改会丢掉。` : `删除「${item.title}」？`)) return;
+              void socket.current.request({ type: "delete", documentId: item.documentId, expectedDocumentId: documentId.current, source: "gui" }).then((response) => {
                 if (!response.ok) return setMessage(response.message ?? "无法删除");
                 if (removingCurrent) accept(response);
                 setDocuments(response.documents ?? []);
                 setMessage(`已删除 ${item.title}`);
-              });
-            }}>删除</button>
+              }).catch(() => setMessage("删除未确认完成，请重新连接后检查文档库"));
+            })().catch(() => setMessage("无法确认删除；工程未被删除"))}>删除</button>
           </div>)}
         </section>
       </div> : null}

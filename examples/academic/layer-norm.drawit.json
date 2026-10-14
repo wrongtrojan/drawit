@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 1,
+  "documentId": "doc_layer_norm",
+  "revision": 0,
+  "title": "Layer Norm",
+  "canvas": {
+    "width": 1400,
+    "height": 622,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "x_{00}",
+          "x_{01}",
+          "x_{02}",
+          "x_{03}"
+        ],
+        [
+          "x_{10}",
+          "x_{11}",
+          "x_{12}",
+          "x_{13}"
+        ],
+        [
+          "x_{20}",
+          "x_{21}",
+          "x_{22}",
+          "x_{23}"
+        ]
+      ],
+      "cellFormat": "math",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "T × d",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [
+        1
+      ],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "input",
+      "x": 40,
+      "y": 172,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "blue"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\longrightarrow",
+      "id": "normalize",
+      "x": 353.337,
+      "y": 216,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "\\hat{x}_{00}",
+          "\\hat{x}_{01}",
+          "\\hat{x}_{02}",
+          "\\hat{x}_{03}"
+        ],
+        [
+          "\\hat{x}_{10}",
+          "\\hat{x}_{11}",
+          "\\hat{x}_{12}",
+          "\\hat{x}_{13}"
+        ],
+        [
+          "\\hat{x}_{20}",
+          "\\hat{x}_{21}",
+          "\\hat{x}_{22}",
+          "\\hat{x}_{23}"
+        ]
+      ],
+      "cellFormat": "math",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "T × d",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [
+        1
+      ],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "normalized",
+      "x": 449.337,
+      "y": 172,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "pink"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\longrightarrow",
+      "id": "affine",
+      "x": 762.674,
+      "y": 216,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "y_{00}",
+          "y_{01}",
+          "y_{02}",
+          "y_{03}"
+        ],
+        [
+          "y_{10}",
+          "y_{11}",
+          "y_{12}",
+          "y_{13}"
+        ],
+        [
+          "y_{20}",
+          "y_{21}",
+          "y_{22}",
+          "y_{23}"
+        ]
+      ],
+      "cellFormat": "math",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "T × d",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [
+        1
+      ],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "output",
+      "x": 858.674,
+      "y": 172,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "green"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Input X",
+      "id": "input_label",
+      "x": 40,
+      "y": 122,
+      "width": 253.337,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Normalize each token",
+      "id": "normalize_label",
+      "x": 313.337,
+      "y": 166,
+      "width": 116,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Normalized X̂",
+      "id": "normalized_label",
+      "x": 449.337,
+      "y": 122,
+      "width": 253.337,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Affine: γ, β",
+      "id": "affine_label",
+      "x": 722.674,
+      "y": 166,
+      "width": 116,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Output Y",
+      "id": "output_label",
+      "x": 858.674,
+      "y": 122,
+      "width": 253.337,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\hat{x}_{ij}=\\frac{x_{ij}-\\mu_i}{\\sqrt{\\sigma_i^2+\\epsilon}},\\quad y_{ij}=\\gamma_j\\hat{x}_{ij}+\\beta_j",
+      "id": "normalization",
+      "x": 40,
+      "y": 370,
+      "width": 1320,
+      "height": 64,
+      "style": {
+        "fontSize": 18
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\mu_i=\\frac{1}{d}\\sum_{j=1}^d x_{ij},\\qquad \\sigma_i^2=\\frac{1}{d}\\sum_{j=1}^d(x_{ij}-\\mu_i)^2",
+      "id": "statistics",
+      "x": 40,
+      "y": 460,
+      "width": 1320,
+      "height": 64,
+      "style": {
+        "fontSize": 18
+      }
+    },
+    {
+      "type": "text",
+      "text": "高亮行是一个 token；统计沿特征维 d 进行，不跨 token 或 batch。",
+      "id": "note",
+      "x": 40,
+      "y": 550,
+      "width": 1300,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Layer Norm",
+      "id": "title",
+      "x": 440,
+      "y": 28,
+      "width": 520,
+      "height": 48,
+      "style": {
+        "role": "title"
+      }
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Noto Sans SC",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#172033",
+    "edgeColor": "#172033"
+  }
+}

@@ -1,9 +1,11 @@
 import { DrawitError, LIMITS, validateDocument, type DiagramDocument, type Issue } from "@drawit/core";
 import { Resvg } from "@resvg/resvg-js";
+import { join } from "node:path";
+import { fontDirectory } from "./fonts.js";
 import { renderEquationSvg } from "./equation.js";
 import { renderDocumentSvg, reviewManifest } from "./svg.js";
 
-export async function svgToPng(svg: string, width: number): Promise<Buffer> {
+export async function svgToPng(svg: string, width: number, options: { loadSystemFonts?: boolean } = {}): Promise<Buffer> {
   const dimensions = /<svg[^>]*\bwidth="([0-9.]+)"[^>]*\bheight="([0-9.]+)"/.exec(svg);
   const naturalWidth = Number(dimensions?.[1]), naturalHeight = Number(dimensions?.[2]);
   if (!Number.isFinite(naturalWidth) || !Number.isFinite(naturalHeight) || naturalWidth <= 0 || naturalHeight <= 0 || !Number.isFinite(width) || width <= 0) throw new DrawitError("EXPORT_FAILED", "Invalid SVG dimensions");
@@ -12,7 +14,7 @@ export async function svgToPng(svg: string, width: number): Promise<Buffer> {
   if (boundedWidth < 1) throw new DrawitError("EXPORT_FAILED", "SVG aspect ratio exceeds render budget");
   const resvg = new Resvg(svg, {
     fitTo: { mode: "width", value: boundedWidth },
-    font: { loadSystemFonts: true },
+    font: { loadSystemFonts: options.loadSystemFonts ?? true, fontFiles: [join(fontDirectory, "NotoSansSC-Regular.ttf"), join(fontDirectory, "NotoSansSC-Bold.ttf"), join(fontDirectory, "NotoSans-Regular.ttf"), join(fontDirectory, "NotoSans-Bold.ttf")], defaultFontFamily: "Noto Sans SC" },
   });
   return Buffer.from(resvg.render().asPng());
 }

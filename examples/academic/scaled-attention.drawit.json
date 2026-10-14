@@ -1,0 +1,369 @@
+{
+  "schemaVersion": 1,
+  "documentId": "doc_scaled_attention",
+  "revision": 0,
+  "title": "Scaled Dot-Product Attention",
+  "canvas": {
+    "width": 1300,
+    "height": 732,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "1",
+          "0",
+          "1"
+        ],
+        [
+          "0",
+          "1",
+          "1"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "2 × 3",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "q",
+      "x": 40,
+      "y": 177,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "blue"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\times",
+      "id": "dot",
+      "x": 312.13800000000003,
+      "y": 201,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "1",
+          "0"
+        ],
+        [
+          "0",
+          "1"
+        ],
+        [
+          "1",
+          "1"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "3 × 2",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "kt",
+      "x": 408.13800000000003,
+      "y": 157,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "pink"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "=",
+      "id": "eq",
+      "x": 640.2760000000001,
+      "y": 201,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "2",
+          "1"
+        ],
+        [
+          "1",
+          "2"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "2 × 2",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "scores",
+      "x": 736.2760000000001,
+      "y": 177,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "pink"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Queries Q",
+      "id": "q_label",
+      "x": 40,
+      "y": 127,
+      "width": 212.138,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Keys Kᵀ",
+      "id": "kt_label",
+      "x": 408.13800000000003,
+      "y": 107,
+      "width": 172.138,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Scores QKᵀ",
+      "id": "scores_label",
+      "x": 736.2760000000001,
+      "y": 127,
+      "width": 172.138,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "0.64",
+          "0.36"
+        ],
+        [
+          "0.36",
+          "0.64"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "2 × 2",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [
+        0
+      ],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "weights",
+      "x": 40,
+      "y": 406,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "blue"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\times",
+      "id": "dotv",
+      "x": 294.13800000000003,
+      "y": 441,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "1",
+          "0",
+          "0"
+        ],
+        [
+          "0",
+          "1",
+          "0"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "2 × 3",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "v",
+      "x": 390.13800000000003,
+      "y": 417,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "pink"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "=",
+      "id": "eqv",
+      "x": 662.2760000000001,
+      "y": 441,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "0.64",
+          "0.36",
+          "0"
+        ],
+        [
+          "0.36",
+          "0.64",
+          "0"
+        ]
+      ],
+      "cellFormat": "plain",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "2 × 3",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "result",
+      "x": 758.2760000000001,
+      "y": 406,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "green"
+      }
+    },
+    {
+      "type": "text",
+      "text": "A = softmax(QKᵀ / √3)",
+      "id": "weights_label",
+      "x": 40,
+      "y": 356,
+      "width": 194.138,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Values V",
+      "id": "v_label",
+      "x": 390.13800000000003,
+      "y": 367,
+      "width": 212.138,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Output O = AV",
+      "id": "result_label",
+      "x": 758.2760000000001,
+      "y": 356,
+      "width": 245.138,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\operatorname{Attention}(Q,K,V)=\\operatorname{softmax}\\left(\\frac{QK^\\top}{\\sqrt{d_k}}\\right)V",
+      "id": "definition",
+      "x": 40,
+      "y": 585,
+      "width": 1220,
+      "height": 64,
+      "style": {
+        "fontSize": 18
+      }
+    },
+    {
+      "type": "text",
+      "text": "dₖ = 3；softmax 按每个 query 的 key 维归一化。数值保留两位小数，每行权重之和为 1。",
+      "id": "note",
+      "x": 40,
+      "y": 660,
+      "width": 1200,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Scaled Dot-Product Attention",
+      "id": "title",
+      "x": 390,
+      "y": 28,
+      "width": 520,
+      "height": 48,
+      "style": {
+        "role": "title"
+      }
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Noto Sans SC",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#172033",
+    "edgeColor": "#172033"
+  }
+}

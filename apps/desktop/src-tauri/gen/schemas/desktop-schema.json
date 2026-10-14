@@ -177,6 +177,12 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Confirm user initiated destructive actions and unsaved window closure",
+          "type": "string",
+          "const": "allow-drawit-confirmation",
+          "markdownDescription": "Confirm user initiated destructive actions and unsaved window closure"
+        },
+        {
           "description": "Write bounded local UI failure diagnostics",
           "type": "string",
           "const": "allow-drawit-diagnostic",

@@ -15,7 +15,7 @@ import {
   LIMITS, checkInputBudget,
   type DiagramDocument,
 } from "@drawit/core";
-import { documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile, writeExportFile } from "@drawit/core/node";
+import { assertSafeFile, documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile, writeExportFile } from "@drawit/core/node";
 import { layoutDocument } from "@drawit/layout";
 import { renderDocumentSvg } from "@drawit/render";
 import { renderRasterSvg, renderReviewPng, svgToPng } from "@drawit/render/png";
@@ -91,6 +91,15 @@ export async function startSessionHost(options: { home: string; port?: number; r
     const path = join(documentsDir(options.home), initial.fileName);
     controller = new DocumentController(await readDocumentFile(path), path);
   }
+
+  const recoveryPath = join(documentsDir(options.home), ".session-recovery.json");
+  try {
+    const recovered = await readDocumentFile(recoveryPath);
+    const path = safeDocumentPath(options.home, recovered.documentId);
+    const saved = await readDocumentFile(path);
+    // Never resurrect a deleted file, or overwrite a newer externally saved revision.
+    if (recovered.revision > saved.revision || JSON.stringify(recovered) === JSON.stringify(saved)) controller = new DocumentController(recovered, path, saved);
+  } catch { /* No valid recovery copy; use the normal document library. */ }
 
   const view: ViewState = { selection: [], viewport: { x: 0, y: 0, zoom: 1 } };
   const sockets = new Set<WebSocket>();
@@ -180,7 +189,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
     }
     try {
       sockets.add(socket);
-      send(socket, await enqueueDispatch(message));
+      send(socket, await enqueueDispatch(message, Buffer.byteLength(raw)));
     } catch (error) {
       send(socket, fail(message.requestId, error));
     }
@@ -189,15 +198,26 @@ export async function startSessionHost(options: { home: string; port?: number; r
   // Serialize complete requests, including save IO and document switches.
   // The controller retains its own single-writer queue for content operations.
   let requestTail: Promise<void> = Promise.resolve();
-  function enqueueDispatch(message: ClientMessage): Promise<SessionResponse> {
-    const response = requestTail.then(() => dispatch(message));
+  let queuedRequests = 0, queuedBytes = 0;
+  function enqueueDispatch(message: ClientMessage, bytes: number): Promise<SessionResponse> {
+    if (queuedRequests >= LIMITS.queuedRequests || queuedBytes + bytes > LIMITS.queuedBytes) throw new DrawitError("TRANSACTION_FAILED", "Session queue is full; reread before retrying");
+    queuedRequests++; queuedBytes += bytes;
+    const response = requestTail.then(async () => {
+      const result = await dispatch(message);
+      if (result.ok && result.document && ["create", "open", "import", "reload", "reloadSnapshot", "delete", "save", "completeSave", "apply", "undo", "redo", "layout"].includes(message.type)) {
+        try { await writeDocumentFile(recoveryPath, result.document); }
+        catch { result.warnings = [...(result.warnings ?? []), { severity: "warning", code: "RECOVERY_WRITE_FAILED", message: "恢复副本写入失败；请保存后再关闭窗口" }]; }
+      }
+      return result;
+    });
     requestTail = response.then(() => undefined, () => undefined);
+    void response.finally(() => { queuedRequests--; queuedBytes -= bytes; }).catch(() => undefined);
     return response;
   }
 
   let closed = false;
   const watcher = watch(documentsDir(options.home), (_event, fileName) => {
-    if (closed) return;
+    if (closed || String(fileName) !== `${activeId}.drawit.json`) return;
     const check = requestTail.then(async () => {
       if (closed) return;
       const current = await controller.getSnapshot();
@@ -316,9 +336,11 @@ export async function startSessionHost(options: { home: string; port?: number; r
       case "delete": {
         if (!message.documentId) throw new DrawitError("VALIDATION_ERROR", "documentId is required");
         const current = await controller.getSnapshot();
-        await rm(safeDocumentPath(options.home, message.documentId), { force: true });
-        const documents = await readJsonDir(options.home);
+        const removingPath = safeDocumentPath(options.home, message.documentId);
+        await assertSafeFile(removingPath);
+        const documents = (await readJsonDir(options.home)).filter((item) => item.documentId !== message.documentId);
         if (current.documentId !== message.documentId) {
+          await rm(removingPath, { force: true });
           return { type: "response", requestId: message.requestId, ok: true, documents, document: current, revision: current.revision, dirty: await controller.isDirty(), path: controller.path, ...historyFlags() };
         }
         const next = documents[0];
@@ -327,6 +349,8 @@ export async function startSessionHost(options: { home: string; port?: number; r
           : createDocument("未命名图示");
         const nextPath = safeDocumentPath(options.home, opened.documentId);
         if (!next) await writeDocumentFile(nextPath, opened);
+        // Resolve and validate the replacement before deleting the current file.
+        await rm(removingPath, { force: true });
         const result = await controller.replace(opened, nextPath, message.source ?? "gui");
         view.selection = [];
         savedDocumentJson = JSON.stringify(result.document);

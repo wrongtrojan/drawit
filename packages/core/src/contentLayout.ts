@@ -1,7 +1,8 @@
 import type { DiagramNode, TreeValue } from "./schema.js";
-import { wrapText } from "./text.js";
+import { wrapText, measureText } from "./text.js";
+import { ACADEMIC, resolveNodeStyle } from "./academic.js";
 
-export const textWidth = (value: string, size = 14): number => Math.max(0, ...value.split(/\r?\n/).map((line) => Array.from(line).reduce((sum, char) => sum + size * (char.codePointAt(0)! >= 0x2e80 ? 1 : .56), 0)));
+export const textWidth = measureText;
 export const labelWidth = (value: string, size = 14): number => Math.max(64, Math.min(240, textWidth(value, size) + 24));
 export const labelHeight = (value: string, width: number, size = 14): number => Math.max(36, wrapText(value, size, Math.max(8, width - 16)).length * size * 1.25 + 16);
 
@@ -10,8 +11,24 @@ export function gridLayout(node: GridNode) {
   const size = node.style?.fontSize ?? 14;
   const rows = node.type === "matrix" ? node.cells : node.type === "table" ? [node.headers, ...node.cells] : node.type === "vector" ? (node.orientation === "column" ? node.components.map((item) => [item]) : [node.components]) : node.type === "stack" ? node.items.map((item) => [item]) : [node.items];
   const columns = Math.max(1, rows[0]?.length ?? 0);
-  const padX = node.type === "matrix" ? 18 : 0;
-  const padY = node.type === "matrix" ? 8 : 0;
+  if (node.type === "matrix" || node.type === "vector") {
+    const bracket = node.bracket !== "none" ? 20 : 0;
+    const padX = 8 + bracket + (node.rowLabels.length ? Math.max(...node.rowLabels.map((value) => textWidth(value, 11))) + 8 : 0);
+    const right = node.dimensionLabel ? Math.max(24, 8 + bracket) + textWidth(node.dimensionLabel, 11) + 8 : 8 + bracket;
+    const padY = node.columnLabels.length ? 24 : 8;
+    const requested = Math.max(ACADEMIC.cell, (node.width - padX - right) / columns, (node.height - padY - 8) / rows.length);
+    const text = (value: string) => node.cellFormat === "math" ? value.replace(/\\(?:hat|bar|vec|tilde|overline|underline|mathbf|mathrm|mathit|left|right)\b/g, "").replace(/\\[a-zA-Z]+/g, "x").replace(/[{}_]/g, "") : value;
+    const minimumWidth = Math.max(requested, ...rows.flat().map((value) => Math.min(240, textWidth(text(value), size) + 16)));
+    const required = Math.max(minimumWidth, ...rows.flat().map((value) => node.cellFormat === "math" ? size * 2 + 12 + Math.min(16, (value.match(/\\frac\b/g) ?? []).length) * size * 1.5 + (/\\(?:sum|prod|int)\b/.test(value) ? size : 0) : wrapText(value, size, minimumWidth - 16).length * size * 1.25 + 16));
+    const cell = Math.ceil(required * 100 - 1e-7) / 100;
+    // A uniform square grid makes projecting an already projected node idempotent.
+    const widths = Array(columns).fill(cell) as number[];
+    const heights = Array(rows.length).fill(cell) as number[];
+    const bodyWidth = widths.reduce((sum, width) => sum + width, 0), bodyHeight = heights.reduce((sum, height) => sum + height, 0);
+    return { rows, widths, heights, width: padX + bodyWidth + right, height: padY + bodyHeight + 8, padX, padY, bodyWidth, bodyHeight };
+  }
+  const padX = 0;
+  const padY = 0;
   const widths = Array.from({ length: columns }, (_, c) => Math.max(64, ...rows.map((row) => labelWidth(row[c] ?? "", size))));
   const baseWidth = widths.reduce((sum, value) => sum + value, 0);
   const width = Math.max(node.width, baseWidth + padX * 2);
@@ -22,7 +39,7 @@ export function gridLayout(node: GridNode) {
   const baseHeight = heights.reduce((sum, value) => sum + value, 0);
   const height = Math.max(node.height, baseHeight + padY * 2);
   heights.forEach((value, r) => heights[r] = value + (height - padY * 2 - baseHeight) / heights.length);
-  return { rows, widths, heights, width, height, padX, padY };
+  return { rows, widths, heights, width, height, padX, padY, bodyWidth: width - 2 * padX, bodyHeight: height - 2 * padY };
 }
 
 export interface InternalVertex { id: string; label: string; x: number; y: number; width: number; height: number; parentId?: string }
@@ -80,6 +97,7 @@ export function graphLayout(node: Extract<DiagramNode, { type: "graph" }>) {
 }
 
 export function contentSize(node: DiagramNode): { width: number; height: number } {
+  if (node.style?.role === "title") return { width: Math.max(node.width, textWidth("text" in node ? node.text : "", resolveNodeStyle(node).fontSize) + 56), height: Math.max(48, node.height) };
   if (["matrix", "table", "vector", "array", "stack", "queue"].includes(node.type)) return gridLayout(node as GridNode);
   if (node.type === "tree") return treeLayout(node);
   if (node.type === "graph") return graphLayout(node);

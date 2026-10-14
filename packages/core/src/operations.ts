@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import { materializeNode } from "./document.js";
 import { DrawitError } from "./errors.js";
-import { absoluteBox, absolutePosition, isAncestor } from "./geometry.js";
+import { absoluteBox, absolutePosition, isAncestor, visualBodyBox } from "./geometry.js";
 import { createId } from "./ids.js";
 import {
   canvasSchema,
@@ -83,6 +83,7 @@ export const nodePatchSchema = z
     name: z.string().optional(), attributes: z.array(z.string()).optional(), methods: z.array(z.string()).optional(), stereotype: z.string().optional(),
     direction: z.enum(["horizontal", "vertical"]).optional(), min: z.number().finite().optional(), max: z.number().finite().optional(),
     ticks: z.array(axisTickSchema).optional(), shape: z.string().optional(), milestones: z.array(milestoneSchema).optional(),
+    cellFormat: z.enum(["plain", "math"]).optional(), rowLabels: z.array(z.string()).optional(), columnLabels: z.array(z.string()).optional(), dimensionLabel: z.string().optional(),
     meta: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
@@ -112,6 +113,7 @@ export const edgeInputSchema = z
   .strict();
 
 export const operationSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("arrangeRow"), nodeIds: z.array(idSchema).min(2).max(200), gap: z.number().min(0).max(400).default(60), centerY: z.number().finite().optional(), startX: z.number().finite().optional() }),
   z.object({ op: z.literal("align"), nodeIds: z.array(idSchema).min(2).max(200), axis: z.enum(["left", "center", "right", "top", "middle", "bottom"]) }),
   z.object({ op: z.literal("distribute"), nodeIds: z.array(idSchema).min(3).max(200), axis: z.enum(["horizontal", "vertical"]) }),
   z.object({ op: z.literal("snapToGrid"), nodeIds: z.array(idSchema).min(1).max(200), gridSize: z.number().positive().max(200).optional() }),
@@ -427,6 +429,22 @@ export function applyOperationsToDraft(document: DiagramDocument, operations: Di
   const summary = emptySummary();
   for (const operation of operations) {
     switch (operation.op) {
+      case "arrangeRow": {
+        const selected = operation.nodeIds.map((id) => requireNode(document, id));
+        if (new Set(operation.nodeIds).size !== selected.length || selected.some((node) => node.parentId !== selected[0]!.parentId)) throw new DrawitError("VALIDATION_ERROR", "Row nodes must be distinct and share a parent");
+        const boxes = selected.map((node) => absoluteBox(document.nodes, node));
+        const bodies = selected.map(visualBodyBox);
+        const parent = selected[0]!.parentId ? absolutePosition(document.nodes, selected[0]!.parentId!) : { x: 0, y: 0 };
+        const offsets: number[] = []; let cursor = 0;
+        for (const box of boxes) { offsets.push(cursor); cursor += box.width + operation.gap; }
+        const pinned = selected.findIndex((node) => node.pinned);
+        const start = operation.startX ?? (pinned >= 0 ? selected[pinned]!.x - offsets[pinned]! : Math.min(...selected.map((node) => node.x)));
+        const center = operation.centerY ?? (pinned >= 0 ? selected[pinned]!.y + bodies[pinned]!.y + bodies[pinned]!.height / 2 : (Math.min(...boxes.map((box) => box.y)) + Math.max(...boxes.map((box) => box.y + box.height))) / 2 - parent.y);
+        const destinations = selected.map((node, index) => ({ node, x: start + offsets[index]!, y: center - bodies[index]!.y - bodies[index]!.height / 2 }));
+        if (destinations.some(({ node, x, y }) => node.pinned && (Math.abs(node.x - x) > .01 || Math.abs(node.y - y) > .01))) throw new DrawitError("VALIDATION_ERROR", "Pinned row anchors conflict; nothing was moved");
+        for (const { node, x, y } of destinations) if (!node.pinned) { node.x = x; node.y = y; summary.updatedNodeIds.push(node.id); }
+        break;
+      }
       case "align":
       case "distribute":
       case "snapToGrid":

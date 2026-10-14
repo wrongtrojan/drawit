@@ -4,7 +4,7 @@ export { cloneDocument, createDocument, materializeNode, parseDocument } from ".
 export { DrawitError, asDrawitError, errorCodes } from "./errors.js";
 export type { ErrorCode } from "./errors.js";
 export { createBinarySearchExample } from "./example.js";
-export { absoluteBox, absolutePosition, edgeLabelPosition, edgeEndpoints, nodeConnectionBox, contentBounds, intersectionArea, projectSemanticNode } from "./geometry.js";
+export { absoluteBox, absolutePosition, edgeLabelPosition, edgeEndpoints, nodeConnectionBox, visualBodyBox, contentBounds, intersectionArea, projectSemanticNode } from "./geometry.js";
 export type { Box } from "./geometry.js";
 export { createId } from "./ids.js";
 export { applyOperationsToDraft, emptySummary, operationSchema, nodeInputSchema, summarizeChanges } from "./operations.js";
@@ -40,3 +40,4 @@ export { wrapText } from "./text.js";
 
 export { contentSize, gridLayout, treeLayout, graphLayout, labelHeight, labelWidth } from "./contentLayout.js";
 export { LIMITS, checkInputBudget } from "./limits.js";
+export { ACADEMIC, resolveNodeStyle, styledNodes } from "./academic.js";

@@ -58,7 +58,10 @@ describe("semantic scenario regressions", () => {
     expect(matrices.some((node) => node.type === "matrix" && node.highlightRows.includes(0))).toBe(true);
     expect(matrices.some((node) => node.type === "matrix" && node.highlightCols.includes(0))).toBe(true);
     expect(matrices.some((node) => node.type === "matrix" && node.highlightCells.some(([row, column]) => row === 0 && column === 0 && node.cells[row]?.[column] === "58"))).toBe(true);
-    expect(svg).toContain("#fde68a");
+    expect(svg).toContain('data-cell="0,0"');
+    expect(svg).toContain('fill="#93c5fd"');
+    expect(svg).toContain('fill="#f9a8b3"');
+    expect(svg).toContain('fill="#86efac"');
     expect(svg).toContain("58");
   });
   it("stops graph edges on the vertex boundary and renders their labels", () => {

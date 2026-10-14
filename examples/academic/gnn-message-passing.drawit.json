@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "documentId": "doc_gnn_message_passing",
+  "revision": 0,
+  "title": "GNN 消息传递",
+  "canvas": {
+    "width": 1300,
+    "height": 572,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "graph",
+      "vertices": [
+        {
+          "id": "u1",
+          "label": "u₁"
+        },
+        {
+          "id": "u2",
+          "label": "u₂"
+        },
+        {
+          "id": "v",
+          "label": "v"
+        }
+      ],
+      "links": [
+        {
+          "source": "u1",
+          "target": "v",
+          "label": "message"
+        },
+        {
+          "source": "u2",
+          "target": "v",
+          "label": "message"
+        }
+      ],
+      "directed": true,
+      "id": "graph",
+      "x": 40,
+      "y": 155,
+      "width": 330,
+      "height": 200,
+      "style": {
+        "fill": "#dbeafe"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\longrightarrow",
+      "id": "aggregate",
+      "x": 430,
+      "y": 231,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "vector",
+      "components": [
+        "m_1",
+        "m_2",
+        "m_3"
+      ],
+      "cellFormat": "math",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "dₘ",
+      "bracket": "square",
+      "orientation": "column",
+      "id": "messages",
+      "x": 526,
+      "y": 187,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "pink"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "\\longrightarrow",
+      "id": "update",
+      "x": 707.8199999999999,
+      "y": 231,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "vector",
+      "components": [
+        "h_1'",
+        "h_2'",
+        "h_3'"
+      ],
+      "cellFormat": "math",
+      "rowLabels": [],
+      "columnLabels": [],
+      "dimensionLabel": "dₕ",
+      "bracket": "square",
+      "orientation": "column",
+      "id": "updated",
+      "x": 803.8199999999999,
+      "y": 187,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "green"
+      }
+    },
+    {
+      "type": "text",
+      "text": "邻居 u₁、u₂ → 中心 v",
+      "id": "graph_label",
+      "x": 40,
+      "y": 105,
+      "width": 330,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Aggregate",
+      "id": "aggregate_label",
+      "x": 390,
+      "y": 181,
+      "width": 116,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "聚合消息 mᵥ",
+      "id": "messages_label",
+      "x": 526,
+      "y": 137,
+      "width": 121.82,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Update",
+      "id": "update_label",
+      "x": 667.8199999999999,
+      "y": 181,
+      "width": 116,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "新状态 hᵥ′",
+      "id": "updated_label",
+      "x": 803.8199999999999,
+      "y": 137,
+      "width": 121.82,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "m_v=\\sum_{u\\in\\mathcal{N}(v)}\\phi(h_u,h_v,e_{uv}),\\qquad h'_v=\\psi(h_v,m_v)",
+      "id": "aggregate_formula",
+      "x": 40,
+      "y": 420,
+      "width": 1220,
+      "height": 64,
+      "style": {
+        "fontSize": 18
+      }
+    },
+    {
+      "type": "text",
+      "text": "sum 聚合与邻居顺序无关；消息函数 φ 和更新函数 ψ 在所有节点间共享。",
+      "id": "note",
+      "x": 40,
+      "y": 500,
+      "width": 1200,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "GNN · Message Passing",
+      "id": "title",
+      "x": 390,
+      "y": 28,
+      "width": 520,
+      "height": 48,
+      "style": {
+        "role": "title"
+      }
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Noto Sans SC",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#172033",
+    "edgeColor": "#172033"
+  }
+}

@@ -1,6 +1,6 @@
 import { SemanticFields } from "./SemanticFields.js";
 import { useState } from "react";
-import { isContainerNode, projectSemanticNode, stylePresets, type DiagramDocument, type DiagramNode, type NodePatch, type StylePresetName } from "@drawit/core";
+import { isContainerNode, projectSemanticNode, resolveNodeStyle, stylePresets, type DiagramDocument, type DiagramNode, type NodePatch, type StylePresetName } from "@drawit/core";
 
 const presetLabel: Record<StylePresetName, string> = {
   default: "默认",
@@ -93,9 +93,11 @@ function NodeFields({ node, nodes, onPatch }: { node: DiagramNode; nodes: Diagra
       {node.type === "annotation" ? <ReferenceField label="标注目标" value={node.targetId ?? ""} nodes={nodes.filter((item) => item.id !== node.id)} optional onChange={(targetId) => onPatch({ targetId: targetId || null })} /> : null}
       </fieldset>
       <fieldset><legend>样式</legend>
+      <label>颜色角色<select value={node.style?.tone ?? "neutral"} onChange={(event) => onPatch({ style: { tone: event.target.value as "neutral" | "blue" | "pink" | "green" } })}><option value="neutral">中性</option><option value="blue">蓝 · 输入</option><option value="pink">粉 · 参数</option><option value="green">绿 · 输出</option></select></label>
+      {["text", "roundedRectangle", "equation", "annotation"].includes(node.type) ? <label>文字角色<select value={node.style?.role ?? "body"} onChange={(event) => onPatch({ style: { role: event.target.value as "body" | "title" | "operator" | "variable" | "caption" } })}><option value="body">正文</option><option value="title">标题胶囊</option><option value="operator">运算符</option><option value="variable">数学变量</option><option value="caption">维度 / 说明</option></select></label> : null}
       <label>
         填充色
-        <input value={node.style?.fill ?? "#ffffff"} onChange={(event) => onPatch({ style: { fill: event.target.value } })} />
+        <input value={node.style?.fill ?? resolveNodeStyle(node).fill} onChange={(event) => onPatch({ style: { fill: event.target.value } })} />
       </label>
       <label>
         边框色

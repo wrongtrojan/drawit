@@ -53,9 +53,9 @@ export class DocumentController {
   private records: OperationRecord[] = [];
   private filePath: string | null;
 
-  constructor(document: DiagramDocument, filePath: string | null = null) {
+  constructor(document: DiagramDocument, filePath: string | null = null, savedDocument = document) {
     this.document = document;
-    this.savedJson = JSON.stringify(document);
+    this.savedJson = JSON.stringify(savedDocument);
     this.filePath = filePath;
   }
 

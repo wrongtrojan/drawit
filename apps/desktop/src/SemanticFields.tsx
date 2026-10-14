@@ -8,6 +8,14 @@ function Direction({ value, onChange }: { value: "horizontal" | "vertical"; onCh
 }
 export function SemanticFields({ node, onPatch }: { node: DiagramNode; onPatch: (patch: NodePatch) => void }) {
   return <>
+    {node.type === "matrix" || node.type === "vector" ? <>
+      <label>单元格格式<select value={node.cellFormat} onChange={(event) => onPatch({ cellFormat: event.target.value as "plain" | "math" })}><option value="plain">普通文字</option><option value="math">LaTeX 数学</option></select></label>
+      <label>括号<select value={node.bracket} onChange={(event) => onPatch({ bracket: event.target.value as "none" | "round" | "square" | "curly" | "pipe" })}><option value="none">无</option><option value="square">方括号</option><option value="round">圆括号</option><option value="curly">大括号</option><option value="pipe">竖线</option></select></label>
+      <Lines label="行标签" values={node.rowLabels} onChange={(rowLabels) => onPatch({ rowLabels })} />
+      <Lines label="列标签" values={node.columnLabels} onChange={(columnLabels) => onPatch({ columnLabels })} />
+      <label>维度说明<input value={node.dimensionLabel} onChange={(event) => onPatch({ dimensionLabel: event.target.value })} /></label>
+    </> : null}
+
     {"name" in node ? <label>{node.type === "class" ? "类名" : node.type === "tensor" ? "张量名" : "名称"}<input value={node.name} onChange={(event) => onPatch({ name: event.target.value })} /></label> : null}
     {node.type === "class" || node.type === "entity" ? <Lines label="属性" values={node.attributes} onChange={(attributes) => onPatch({ attributes })} /> : null}
     {node.type === "class" ? <><Lines label="方法" values={node.methods} onChange={(methods) => onPatch({ methods })} /><label>构造型（可选）<input value={node.stereotype} onChange={(event) => onPatch({ stereotype: event.target.value })} /></label></> : null}

@@ -1,0 +1,264 @@
+{
+  "schemaVersion": 1,
+  "documentId": "doc_position_encoding",
+  "revision": 0,
+  "title": "Position Encoding",
+  "canvas": {
+    "width": 1300,
+    "height": 502,
+    "background": "#ffffff",
+    "gridSize": 20
+  },
+  "nodes": [
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "x_{00}",
+          "x_{01}",
+          "x_{02}",
+          "x_{03}"
+        ],
+        [
+          "x_{10}",
+          "x_{11}",
+          "x_{12}",
+          "x_{13}"
+        ],
+        [
+          "x_{20}",
+          "x_{21}",
+          "x_{22}",
+          "x_{23}"
+        ]
+      ],
+      "cellFormat": "math",
+      "rowLabels": [
+        "0",
+        "1",
+        "2"
+      ],
+      "columnLabels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "dimensionLabel": "3 × 4",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "embedding",
+      "x": 40,
+      "y": 154,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "blue"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "+",
+      "id": "plus",
+      "x": 366.24300000000005,
+      "y": 214,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "p_{00}",
+          "p_{01}",
+          "p_{02}",
+          "p_{03}"
+        ],
+        [
+          "p_{10}",
+          "p_{11}",
+          "p_{12}",
+          "p_{13}"
+        ],
+        [
+          "p_{20}",
+          "p_{21}",
+          "p_{22}",
+          "p_{23}"
+        ]
+      ],
+      "cellFormat": "math",
+      "rowLabels": [
+        "0",
+        "1",
+        "2"
+      ],
+      "columnLabels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "dimensionLabel": "3 × 4",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "position",
+      "x": 462.24300000000005,
+      "y": 153.67000000000002,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "pink"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "=",
+      "id": "equal",
+      "x": 789.3660000000001,
+      "y": 214,
+      "width": 36,
+      "height": 48,
+      "style": {
+        "role": "operator"
+      }
+    },
+    {
+      "type": "matrix",
+      "cells": [
+        [
+          "z_{00}",
+          "z_{01}",
+          "z_{02}",
+          "z_{03}"
+        ],
+        [
+          "z_{10}",
+          "z_{11}",
+          "z_{12}",
+          "z_{13}"
+        ],
+        [
+          "z_{20}",
+          "z_{21}",
+          "z_{22}",
+          "z_{23}"
+        ]
+      ],
+      "cellFormat": "math",
+      "rowLabels": [
+        "0",
+        "1",
+        "2"
+      ],
+      "columnLabels": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "dimensionLabel": "3 × 4",
+      "bracket": "square",
+      "spacing": 8,
+      "highlightRows": [],
+      "highlightCols": [],
+      "highlightCells": [],
+      "id": "encoded",
+      "x": 885.3660000000001,
+      "y": 154,
+      "width": 1,
+      "height": 1,
+      "style": {
+        "tone": "green"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Token embedding X",
+      "id": "embedding_label",
+      "x": 40,
+      "y": 104,
+      "width": 266.24300000000005,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Position encoding P",
+      "id": "position_label",
+      "x": 462.24300000000005,
+      "y": 103.67000000000002,
+      "width": 267.12300000000005,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Encoded input Z",
+      "id": "encoded_label",
+      "x": 885.3660000000001,
+      "y": 104,
+      "width": 266.24300000000005,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "equation",
+      "latex": "P_{i,2j}=\\sin(i/10000^{2j/d}),\\quad P_{i,2j+1}=\\cos(i/10000^{2j/d})",
+      "id": "definition",
+      "x": 40,
+      "y": 350,
+      "width": 1220,
+      "height": 64,
+      "style": {
+        "fontSize": 18
+      }
+    },
+    {
+      "type": "text",
+      "text": "位置 i 与通道 j 在格外标注；按对应位置相加，形状保持 T × d。",
+      "id": "note",
+      "x": 40,
+      "y": 430,
+      "width": 1200,
+      "height": 32,
+      "style": {
+        "role": "caption"
+      }
+    },
+    {
+      "type": "text",
+      "text": "Position Encoding",
+      "id": "title",
+      "x": 390,
+      "y": 28,
+      "width": 520,
+      "height": 48,
+      "style": {
+        "role": "title"
+      }
+    }
+  ],
+  "edges": [],
+  "styles": {
+    "fontFamily": "Noto Sans SC",
+    "nodeFill": "#ffffff",
+    "nodeStroke": "#172033",
+    "edgeColor": "#172033"
+  }
+}
