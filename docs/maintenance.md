@@ -97,7 +97,7 @@ pnpm --filter @drawit/desktop tauri build
 
 ## 打包
 
-在目标系统和 CPU 架构上执行 `pnpm --filter @drawit/desktop tauri build`。构建会生成图标，打入当前平台的 Node 与 resvg，并把 MCP 和 Session Host 打成 CJS。安装后的桌面壳负责启动和关闭 Host。复制出来的 MCP 配置使用 `--mcp --runtime <安装资源目录>`。
+在目标系统和 CPU 架构上执行 `pnpm --filter @drawit/desktop tauri build`。构建会生成图标，打入当前平台的 Node 与 resvg，并把 MCP 和 Session Host 打成 CJS。安装后的桌面壳负责启动和关闭 Host，发布版不弹出控制台。Windows 上 Tauri 给出的程序路径带 `\\?\` 前缀，交给 Node 之前要去掉，否则会话脚本无法启动。会话进程的标准错误写到数据目录的 `session.log`。复制出来的 MCP 配置使用 `--mcp --runtime <安装资源目录>`。
 
 产物在 `apps/desktop/src-tauri/target/release/bundle/`。可用 `--bundles nsis`、`--bundles dmg` 或 `--bundles deb` 选择格式。macOS 上若 Finder 不能美化镜像，先 `tauri build --bundles app`，再在仓库根目录执行 `pnpm package:dmg`。
 

@@ -1,4 +1,6 @@
-use std::{path::PathBuf, process::{Child, Command, Stdio}, sync::Mutex};
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use std::{fs::OpenOptions, path::{Path, PathBuf}, process::{Child, Command, Stdio}, sync::Mutex};
 use tauri::Manager;
 
 struct SessionProcess(Mutex<Option<Child>>);
@@ -18,7 +20,16 @@ impl Drop for SessionProcess {
 
 struct DesktopConfig { home: PathBuf, mcp: serde_json::Value }
 
+fn plain_path(path: &Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    text.strip_prefix(r"\\?\").map(PathBuf::from).unwrap_or_else(|| path.to_path_buf())
+}
+
 fn runtime_command(runtime: &std::path::Path, entry: &str) -> Command {
+    let runtime = plain_path(runtime);
     let mut command = Command::new(runtime.join(if cfg!(windows) { "node.exe" } else { "node" }));
     command.arg(runtime.join(entry));
     #[cfg(windows)] {
@@ -40,16 +51,18 @@ fn main() {
     }
     tauri::Builder::default()
         .setup(|app| {
-            let home = std::env::var("DRAWIT_HOME").map(PathBuf::from).unwrap_or(app.path().app_data_dir()?.with_file_name("drawit"));
-            let runtime = app.path().resource_dir()?.join("runtime");
+            let home = plain_path(&std::env::var("DRAWIT_HOME").map(PathBuf::from).unwrap_or(app.path().app_data_dir()?.with_file_name("drawit")));
+            let runtime = plain_path(&app.path().resource_dir()?.join("runtime"));
             let (child, command, arguments) = if cfg!(debug_assertions) {
-                let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..").canonicalize()?;
+                let root = plain_path(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../..").canonicalize()?);
                 (None, "node".to_string(), vec![root.join("packages/mcp/node_modules/tsx/dist/cli.mjs").to_string_lossy().into_owned(), root.join("packages/mcp/src/index.ts").to_string_lossy().into_owned()])
             } else {
+                std::fs::create_dir_all(&home)?;
+                let stderr = OpenOptions::new().create(true).append(true).open(home.join("session.log")).map(Stdio::from).unwrap_or(Stdio::null());
                 let child = runtime_command(&runtime, "session.cjs")
                     .env("DRAWIT_HOME", &home).env("DRAWIT_MANAGED_SESSION", "1")
-                    .stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::inherit()).spawn()?;
-                (Some(child), std::env::current_exe()?.to_string_lossy().into_owned(), vec!["--mcp".to_string(), "--runtime".to_string(), runtime.to_string_lossy().into_owned()])
+                    .stdin(Stdio::piped()).stdout(Stdio::null()).stderr(stderr).spawn()?;
+                (Some(child), plain_path(&std::env::current_exe()?).to_string_lossy().into_owned(), vec!["--mcp".to_string(), "--runtime".to_string(), runtime.to_string_lossy().into_owned()])
             };
             app.manage(SessionProcess(Mutex::new(child)));
             app.manage(DesktopConfig { home: home.clone(), mcp: serde_json::json!({ "mcpServers": { "drawit": { "command": command, "args": arguments, "env": { "DRAWIT_HOME": home } } } }) });
