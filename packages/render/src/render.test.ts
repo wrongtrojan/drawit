@@ -1,7 +1,7 @@
 import { createBinarySearchExample } from "@drawit/core";
 import { describe, expect, it } from "vitest";
 import { renderReviewPng } from "./png.js";
-import { renderDocumentSvg } from "./svg.js";
+import { renderDocumentSvg } from "./index.js";
 
 describe("renderer", () => {
   it("writes vector svg for the example diagram", () => {
@@ -31,7 +31,8 @@ it("rasterizes fractions as SVG paths while retaining LaTeX in user SVG", async 
   expect(raster).not.toContain("foreignObject");
   expect(raster).toContain("<path");
   expect(raster).toContain("<title>P(H|D)");
-  expect(renderDocumentSvg(document)).toContain("foreignObject");
+  expect(renderDocumentSvg(document)).not.toContain("foreignObject");
+  expect(renderDocumentSvg(document)).toContain("<path");
   const png = await renderReviewPng(document);
   expect(png.png.subarray(0, 4).toString("hex")).toBe("89504e47");
 });

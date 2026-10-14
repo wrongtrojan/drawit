@@ -88,3 +88,8 @@ legend { font-weight: 600; color: #475569; padding-right: 8px; }
 
 .semantic-entry { padding: 8px 0; border-bottom: 1px solid #d6dde6; }
 .tree-fields { padding-left: 8px; border-left: 1px solid #cbd5e1; margin: 8px 0; }
+.boundary-content { display: contents; }
+.error-recovery { background: #fff; color: #991b1b; padding: 16px; border: 1px solid #fecaca; display: flex; flex-direction: column; gap: 12px; }
+.error-recovery.application { min-height: 100vh; justify-content: center; align-items: center; }
+.error-recovery.node { font-size: 12px; height: 100%; box-sizing: border-box; }
+.app.is-offline .palette, .app.is-offline .properties, .app.is-offline .toolbar { pointer-events: none; opacity: .6; }

@@ -12,13 +12,13 @@ import {
   type HandleSide,
   type TreeValue,
 } from "@drawit/core";
-import katex from "katex";
 
 export interface RenderOptions {
   background?: string;
   padding?: number;
   annotateIds?: boolean;
-  equationMode?: "html" | "text";
+  equationMode?: "text";
+  onRenderError?: (nodeId: string) => void;
   equationRenderer?: (node: Extract<DiagramNode, { type: "equation" }>) => string;
 }
 
@@ -52,9 +52,6 @@ function points(pairs: Array<[number, number]>): string {
   return pairs.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
 }
 
-export function renderKatexHtml(latex: string): string {
-  return katex.renderToString(latex, { throwOnError: false, trust: false, output: "html" });
-}
 
 function localShape(node: DiagramNode, fill: string, stroke: string, strokeWidth: number): string {
   const { width, height } = node;
@@ -237,12 +234,12 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
     parts.push(`<image href="${escapeXml(node.src)}" x="0" y="0" width="${node.width}" height="${node.height}"/>`);
   } else if (node.type === "equation") {
     if (options.equationRenderer) {
-      parts.push(options.equationRenderer(node));
+      try { parts.push(options.equationRenderer(node)); }
+      catch { options.onRenderError?.(node.id); parts.push(textBlock("公式无法转换", 8, 8, node.width - 16, node.height - 16, 12, "#991b1b", family)); }
     } else if (options.equationMode === "text") {
       parts.push(textBlock(node.latex, 8, 8, node.width - 16, node.height - 16, fontSize(node), textColor, family));
     } else {
-      const html = renderKatexHtml(node.latex);
-      parts.push(`<foreignObject x="8" y="8" width="${Math.max(1, node.width - 16)}" height="${Math.max(1, node.height - 16)}"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;height:100%;font-size:${fontSize(node)}px;">${html}</div></foreignObject>`);
+      parts.push(textBlock("公式正在加载", 8, 8, node.width - 16, node.height - 16, 12, "#64748b", family));
     }
   } else if (node.type === "table") {
     parts.push(gridBody(node, fill, stroke, textColor, family));

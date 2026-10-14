@@ -1,5 +1,7 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { mkdir, readFile, rename, rm, writeFile, realpath, lstat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { LIMITS } from "./limits.js";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { DrawitError } from "./errors.js";
 import { parseDocument } from "./document.js";
 import type { DiagramDocument } from "./schema.js";
@@ -24,6 +26,8 @@ export function assertInsideRoot(root: string, target: string): string {
 }
 
 export async function readDocumentFile(filePath: string): Promise<DiagramDocument> {
+  await assertSafeFile(filePath);
+  if ((await lstat(filePath)).size > LIMITS.messageBytes) throw new DrawitError("VALIDATION_ERROR", "Document file exceeds size budget");
   const text = await readFile(filePath, "utf8");
   let parsed: unknown;
   try {
@@ -37,9 +41,10 @@ export async function readDocumentFile(filePath: string): Promise<DiagramDocumen
 export async function writeDocumentFile(filePath: string, document: DiagramDocument): Promise<void> {
   const directory = dirname(filePath);
   await mkdir(directory, { recursive: true });
-  const temporary = `${filePath}.${process.pid}.tmp`;
+  await assertSafeFile(filePath);
+  const temporary = `${filePath}.${randomUUID()}.tmp`;
   const backup = `${filePath}.bak`;
-  await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+  await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, { encoding: "utf8", flag: "wx", mode: 0o600 });
   await rm(backup, { force: true });
   try {
     await rename(filePath, backup);
@@ -68,8 +73,29 @@ export function safeDocumentPath(home: string, documentId: string): string {
 }
 
 export function safeExportPath(home: string, fileName: string): string {
-  if (fileName.includes("/") || fileName.includes("\\") || fileName.includes("..")) {
+  if (!fileName || fileName.length > 180 || /[<>:"/\\|?*\x00-\x1f]/.test(fileName) || fileName.includes("..") || /[. ]$/.test(fileName) || /^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(fileName)) {
     throw new DrawitError("PATH_FORBIDDEN", "Export file name cannot contain a path");
   }
   return assertInsideRoot(exportsDir(home), join(exportsDir(home), fileName));
+}
+
+/** Refuse linked files and linked directory segments at every IO boundary. */
+export async function assertSafeFile(filePath: string): Promise<void> {
+  const directory = resolve(dirname(filePath));
+  // /tmp and /var on macOS are OS aliases; resolve the configured directory first.
+  const canonical = await realpath(directory);
+  const leaf = await lstat(filePath).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return null; throw error; });
+  if (leaf?.isSymbolicLink() || (leaf && !leaf.isFile())) throw new DrawitError("PATH_FORBIDDEN", "Target must be a regular file");
+  const parent = await lstat(directory);
+  if (parent.isSymbolicLink()) throw new DrawitError("PATH_FORBIDDEN", "Target directory cannot be a symbolic link");
+  // The last directory is documents/exports. Its canonical parent must match its configured parent.
+  if (canonical !== join(await realpath(dirname(directory)), basename(directory))) throw new DrawitError("PATH_FORBIDDEN", "Target directory resolves outside its configured parent");
+}
+
+export async function writeExportFile(filePath: string, content: string | Uint8Array): Promise<void> {
+  await mkdir(dirname(filePath), { recursive: true });
+  await assertSafeFile(filePath);
+  const temporary = `${filePath}.${randomUUID()}.tmp`;
+  try { await writeFile(temporary, content, { flag: "wx", mode: 0o600 }); await rename(temporary, filePath); }
+  finally { await rm(temporary, { force: true }); }
 }

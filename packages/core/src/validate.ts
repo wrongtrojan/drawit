@@ -1,6 +1,7 @@
 import { absoluteBox, edgeEndpoints, edgeLabelPosition, intersectionArea, isAncestor, nodeMap } from "./geometry.js";
 import { isContainerNode, type DiagramDocument, type DiagramNode, type TreeValue } from "./schema.js";
 import { textBlockHeight, wrapText } from "./text.js";
+import { LIMITS, checkInputBudget } from "./limits.js";
 
 export interface Issue {
   severity: "error" | "warning" | "suggestion";
@@ -72,15 +73,30 @@ function flattenTree(node: TreeValue): string {
 function imageUnsafe(src: string): boolean {
   if (src.length > 500_000) return true;
   if (SAFE_RASTER.test(src)) return false;
-  if (src.startsWith("data:image/svg+xml")) {
-    const lower = src.toLowerCase();
-    return lower.includes("script") || lower.includes("onload") || lower.includes("onerror");
-  }
+  // Imported images are raster-only. Generated vector diagrams remain SVG.
+  // Substring checks cannot safely validate base64 SVG, external URLs or handlers.
   return true;
 }
 
 export function validateDocument(document: DiagramDocument): Issue[] {
   const issues: Issue[] = [];
+  try { checkInputBudget(document); } catch { return [issue("error", "RESOURCE_LIMIT", "Document exceeds structural budget")]; }
+  if (document.nodes.length > LIMITS.nodes || document.edges.length > LIMITS.edges) return [issue("error", "RESOURCE_LIMIT", "Too many diagram objects")];
+  let cellCount = 0;
+  for (const node of document.nodes) {
+    if (Math.abs(node.x) > LIMITS.coordinate || Math.abs(node.y) > LIMITS.coordinate) return [issue("error", "RESOURCE_LIMIT", "Coordinates exceed the diagram budget", node.id)];
+    if ("cells" in node) cellCount += node.cells.reduce((sum, row) => sum + row.length, 0);
+    if (node.type === "tree") {
+      const pending = [{ value: node.root, depth: 0 }]; let count = 0;
+      while (pending.length) {
+        const { value, depth } = pending.pop()!;
+        if (++count > LIMITS.treeNodes || depth > LIMITS.treeDepth) return [issue("error", "RESOURCE_LIMIT", "Tree exceeds depth or vertex budget", node.id)];
+        for (const child of value.children) pending.push({ value: child, depth: depth + 1 });
+      }
+    }
+    if (Object.values(node).some((value) => typeof value === "string" && value.length > LIMITS.textLength && !value.startsWith("data:image/"))) return [issue("error", "RESOURCE_LIMIT", "Text exceeds node budget", node.id)];
+  }
+  if (cellCount > LIMITS.cells) return [issue("error", "RESOURCE_LIMIT", "Too many cells")];
   const seen = new Set<string>();
   for (const node of document.nodes) {
     if (seen.has(node.id)) {

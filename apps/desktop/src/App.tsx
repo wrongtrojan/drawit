@@ -5,7 +5,9 @@ import { Canvas } from "./Canvas.js";
 import { Palette } from "./Palette.js";
 import { Properties } from "./Properties.js";
 import { captureElements, pasteElements, duplicateElements } from "./project.js";
-import { discoverSession, EditorSocket } from "./sessionClient.js";
+import { discoverSession, EditorSocket, RevisionGate } from "./sessionClient.js";
+import { ErrorBoundary } from "./ErrorBoundary.js";
+import { diagnosticContext, reportError } from "./diagnostics.js";
 import type { SessionResponse } from "@drawit/session/protocol";
 import { StatusBar } from "./StatusBar.js";
 import { isEditingTarget, isMac, shortcut, type EditorAction } from "./keyboard.js";
@@ -24,6 +26,8 @@ export function App() {
   const [logOpen, setLogOpen] = useState(false);
   const [history, setHistory] = useState({ undo: false, redo: false });
   const revision = useRef(0);
+  const documentId = useRef<string | undefined>(undefined);
+  const gate = useRef(new RevisionGate());
   const selectionRef = useRef<string[]>([]);
   const clipboard = useRef<DiagramDocument | null>(null);
   const [documents, setDocuments] = useState<NonNullable<SessionResponse["documents"]> | null>(null);
@@ -43,13 +47,16 @@ export function App() {
     if (response.ok && response.records) setRecords(response.records);
   }, []);
 
-  const accept = useCallback((response: SessionResponse) => {
+  const accept = useCallback((response: SessionResponse, authoritative = false) => {
+    if (!gate.current.accept(response, authoritative)) return;
     if (response.document) {
       const ids = selectionRef.current.filter((id) => response.document!.nodes.some((node) => node.id === id) || response.document!.edges.some((edge) => edge.id === id));
       selectionRef.current = ids;
       setSelection(ids);
       setDocument(response.document);
       revision.current = response.document.revision;
+      documentId.current = response.document.documentId;
+      diagnosticContext({ documentId: response.document.documentId, revision: response.document.revision });
     }
     if (response.dirty !== undefined) setDirty(response.dirty);
     if (response.warnings) setWarnings(response.warnings);
@@ -59,8 +66,8 @@ export function App() {
   }, []);
 
   const apply = useCallback(async (operations: DiagramOperation[]) => {
-    if (!operations.length) return;
-    const response = await socket.current.request({ type: "apply", expectedRevision: revision.current, operations, source: "gui" }).catch((error) => { setMessage(error instanceof Error ? error.message : "会话请求失败"); return null; });
+    if (!operations.length || !socket.current.connected) return;
+    const response = await socket.current.request({ type: "apply", expectedDocumentId: documentId.current, expectedRevision: revision.current, operations, source: "gui" }).catch((error) => { setMessage(error instanceof Error ? error.message : "会话请求失败"); return null; });
     if (!response) return;
     if (!response.ok) {
       setMessage(response.message ?? "操作没有执行");
@@ -78,59 +85,46 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    socket.current.onDisconnect = () => { if (!cancelled) { setConnected(false); setMessage("本机会话已断开"); } };
-    const connect = async () => {
-      for (let attempt = 0; attempt < 20 && !cancelled; attempt += 1) {
-        try {
-          const session = await discoverSession();
-          await socket.current.connect(session.port, session.token);
-          socket.current.onEvent = (event) => {
-            if (event.event === "revision" && event.document) {
-              const ids = selectionRef.current.filter((id) => event.document!.nodes.some((node) => node.id === id) || event.document!.edges.some((edge) => edge.id === id));
-              selectionRef.current = ids;
-              setSelection(ids);
-              setDocument(event.document);
-              revision.current = event.document.revision;
-              setDirty(event.dirty ?? true);
-              setWarnings(event.warnings ?? []);
-              if (event.canUndo !== undefined || event.canRedo !== undefined) {
-                setHistory({ undo: Boolean(event.canUndo), redo: Boolean(event.canRedo) });
-              }
-              if (event.record) setMessage(`${event.record.source} 更新到版本 ${event.record.revision}`);
-            }
-            if (event.event === "saved" && event.document) {
-              setDocument(event.document);
-              setDirty(false);
-              if (event.canUndo !== undefined || event.canRedo !== undefined) {
-                setHistory({ undo: Boolean(event.canUndo), redo: Boolean(event.canRedo) });
-              }
-            }
-            if (event.event === "externalChange") { setExternalChanged(true); setMessage("工程文件被外部修改；当前内容未被覆盖"); }
-            if (event.event === "view" && event.view) {
-              if (selectionRef.current.slice().sort().join("\0") !== event.view.selection.slice().sort().join("\0")) {
-                selectionRef.current = event.view.selection;
-                setSelection(event.view.selection);
-              }
-            }
-          };
-          const snapshot = await socket.current.request({ type: "subscribe" });
-          if (snapshot.document) {
-            accept(snapshot);
-            setConnected(true);
-            setMessage(`${snapshot.document.title} · 版本 ${snapshot.document.revision}`);
-            await refreshLog();
-          }
-          return;
-        } catch {
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        }
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let failures = 0;
+    let subscribed = false;
+    const client = new EditorSocket();
+    socket.current = client;
+    const retry = () => {
+      if (cancelled) return;
+      subscribed = false; setConnected(false);
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(() => void connect(), Math.min(5000, 300 * 2 ** Math.min(failures++, 5)));
+    };
+    client.onDisconnect = () => { if (!cancelled) { setMessage("本机会话已断开，正在重新连接；写入已暂停"); retry(); } };
+    client.onProtocolError = (error) => { reportError(error); setMessage("会话消息无效；当前工程未被替换"); };
+    client.onEvent = (event) => {
+      if (cancelled || !subscribed || !gate.current.accept(event)) return;
+      if (event.document) accept({ ...event, type: "response", requestId: "event", ok: true });
+      if (event.event === "externalChange") { setExternalChanged(true); setMessage("工程文件被外部修改；当前内容未被覆盖"); }
+      if (event.event === "view" && event.view && selectionRef.current.slice().sort().join("\0") !== event.view.selection.slice().sort().join("\0")) {
+        selectionRef.current = event.view.selection; setSelection(event.view.selection);
       }
-      if (!cancelled) setMessage("无法连接本地绘图会话");
+      if (event.record) setMessage(`${event.record.source} 更新到版本 ${event.record.revision}`);
+    };
+    const connect = async () => {
+      try {
+        const session = await discoverSession();
+        if (cancelled) return;
+        await client.connect(session.port, session.token);
+        if (cancelled) return;
+        const snapshot = await client.request({ type: "subscribe" });
+        if (cancelled) return;
+        if (!snapshot.ok || !snapshot.document) throw new Error("会话未返回有效工程");
+        accept(snapshot, true); subscribed = true; failures = 0; setConnected(true);
+        setMessage(`${snapshot.document.title} · 版本 ${snapshot.document.revision}`);
+        await refreshLog();
+      } catch (error) {
+        if (!cancelled) { client.close(); setMessage(error instanceof Error ? error.message : "会话未就绪"); retry(); }
+      }
     };
     void connect();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; clearTimeout(retryTimer); client.onDisconnect = null; client.onEvent = null; client.close(); };
   }, [accept, refreshLog]);
 
   const request = useCallback(async (body: Record<string, unknown>, success?: string) => {
@@ -148,7 +142,7 @@ export function App() {
     const nodeIds = selection.filter((id) => document.nodes.some((node) => node.id === id));
     const edgeIds = selection.filter((id) => document.edges.some((edge) => edge.id === id));
     if (name === "save") return request({ type: "save" }, "已保存");
-    if (name === "undo" || name === "redo") return request({ type: name, expectedRevision: revision.current, source: "gui" });
+    if (name === "undo" || name === "redo") return request({ type: name, expectedDocumentId: documentId.current, expectedRevision: revision.current, source: "gui" });
     if (name === "selectAll") return select([...document.nodes.map((node) => node.id), ...document.edges.map((edge) => edge.id)]);
     if (name === "escape") return select([]);
     if (name === "fit") { void flow.current?.fitView(); return; }
@@ -225,7 +219,7 @@ export function App() {
   };
 
   return (
-    <div className={`app ${paletteCollapsed ? "palette-collapsed" : ""}`}>
+    <div className={`app ${!connected ? "is-offline" : ""} ${paletteCollapsed ? "palette-collapsed" : ""}`}>
       <Toolbar
         canUndo={history.undo}
         canRedo={history.redo}
@@ -256,7 +250,7 @@ export function App() {
           if (op === "align" && nodeIds.length >= 2) void apply([{ op, nodeIds, axis: axis as "left" | "center" | "right" | "top" | "middle" | "bottom" }]);
           if (op === "distribute" && nodeIds.length >= 3) void apply([{ op, nodeIds, axis: axis as "horizontal" | "vertical" }]);
         }}
-        onLayout={(direction) => void socket.current.request({ type: "layout", expectedRevision: revision.current, direction, source: "gui" }).then((response) => {
+        onLayout={(direction) => void socket.current.request({ type: "layout", expectedDocumentId: documentId.current, expectedRevision: revision.current, direction, source: "gui" }).then((response) => {
           if (!response.ok) return setMessage(response.message ?? "布局失败");
           accept(response);
           setMessage("已自动布局");
@@ -299,7 +293,8 @@ export function App() {
       />
       <Palette collapsed={paletteCollapsed} onToggle={() => setPaletteCollapsed((value) => !value)} onCreate={createComponent} />
       <main className="canvas" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
-        <Canvas
+        <ErrorBoundary scope="canvas" resetKey={document.documentId}><Canvas
+          readOnly={!connected}
           document={document}
           selection={selection}
           onInit={(instance) => { flow.current = instance; }}
@@ -311,7 +306,7 @@ export function App() {
             const handle = (value: string | null | undefined) => value === "top" || value === "right" || value === "bottom" || value === "left" ? value : undefined;
             void apply([{ op: "connect", edges: [{ source: connection.source, target: connection.target, sourceHandle: handle(connection.sourceHandle), targetHandle: handle(connection.targetHandle) }] }]);
           }}
-        />
+        /> </ErrorBoundary>
       </main>
       {externalChanged ? <div className="external-warning" role="alert"><span>工程文件已被外部修改。</span><button onClick={() => void request({ type: "reload", source: "gui" }, "已重新加载外部文件").then((ok) => { if (ok) setExternalChanged(false); })}>重新加载{dirty ? "（丢弃未保存修改）" : ""}</button><button onClick={() => setExternalChanged(false)}>保留当前内容</button></div> : null}
       <Properties

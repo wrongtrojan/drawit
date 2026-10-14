@@ -28,9 +28,10 @@ interface CanvasProps {
   onConnect: (connection: Connection) => void;
   onSelection: (ids: string[]) => void;
   onInit: (instance: ReactFlowInstance) => void;
+  readOnly?: boolean;
 }
 
-export function Canvas({ document, selection, onMove, onResize, onConnect, onSelection, onInit }: CanvasProps) {
+export function Canvas({ document, selection, onMove, onResize, onConnect, onSelection, onInit, readOnly }: CanvasProps) {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const dragging = useRef(new Set<string>());
@@ -39,11 +40,11 @@ export function Canvas({ document, selection, onMove, onResize, onConnect, onSel
   useEffect(() => {
     setNodes((current) => {
       const next = toFlowNodes(document, selection);
-      if (dragging.current.size === 0) return next;
+      if (dragging.current.size === 0 && resizing.current.size === 0) return next;
       return next.map((node) => {
-        if (!dragging.current.has(node.id)) return node;
+        if (!dragging.current.has(node.id) && !resizing.current.has(node.id)) return node;
         const previous = current.find((item) => item.id === node.id);
-        return previous ? { ...node, position: previous.position } : node;
+        return previous ? { ...node, position: dragging.current.has(node.id) ? previous.position : node.position, ...(resizing.current.has(node.id) ? { width: previous.width, height: previous.height, style: previous.style } : {}) } : node;
       });
     });
     setEdges(toFlowEdges(document, selection));
@@ -78,6 +79,8 @@ export function Canvas({ document, selection, onMove, onResize, onConnect, onSel
   return (
     <ReactFlow
       nodes={nodes}
+      nodesDraggable={!readOnly}
+      nodesConnectable={!readOnly}
       edges={edges}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}

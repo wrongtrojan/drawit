@@ -13,6 +13,7 @@ export { componentById, componentCatalog, unsupportedDiagramKinds, componentRegi
 export type { ComponentCategory, ComponentDefinition, StylePresetName } from "./registry.js";
 export {
   SCHEMA_VERSION,
+  idSchema,
   documentSchema,
   edgeSchema,
   nodeSchema, nodeTypeSchema, isContainerNode,
@@ -38,3 +39,4 @@ export type { Issue } from "./validate.js";
 export { wrapText } from "./text.js";
 
 export { contentSize, gridLayout, treeLayout, graphLayout, labelHeight, labelWidth } from "./contentLayout.js";
+export { LIMITS, checkInputBudget } from "./limits.js";

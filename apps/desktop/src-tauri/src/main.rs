@@ -50,6 +50,12 @@ fn main() {
         }
     }
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show(); let _ = window.unminimize(); let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let home = plain_path(&std::env::var("DRAWIT_HOME").map(PathBuf::from).unwrap_or(app.path().app_data_dir()?.with_file_name("drawit")));
             let runtime = plain_path(&app.path().resource_dir()?.join("runtime"));
@@ -68,7 +74,7 @@ fn main() {
             app.manage(DesktopConfig { home: home.clone(), mcp: serde_json::json!({ "mcpServers": { "drawit": { "command": command, "args": arguments, "env": { "DRAWIT_HOME": home } } } }) });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![drawit_session, drawit_mcp_config])
+        .invoke_handler(tauri::generate_handler![drawit_session, drawit_mcp_config, drawit_diagnostic])
         .run(tauri::generate_context!())
         .expect("error while running drawit");
 }
@@ -81,3 +87,22 @@ fn drawit_session(config: tauri::State<'_, DesktopConfig>) -> Result<serde_json:
 
 #[tauri::command]
 fn drawit_mcp_config(config: tauri::State<'_, DesktopConfig>) -> serde_json::Value { config.mcp.clone() }
+
+#[tauri::command]
+fn drawit_diagnostic(config: tauri::State<'_, DesktopConfig>, record: serde_json::Value) -> Result<(), String> {
+    use std::io::Write;
+    let path = config.home.join("ui.log");
+    if std::fs::metadata(&path).map(|m| m.len() > 5_000_000).unwrap_or(false) {
+        let _ = std::fs::rename(config.home.join("ui.log.1"), config.home.join("ui.log.2"));
+        let _ = std::fs::rename(&path, config.home.join("ui.log.1"));
+    }
+    let mut clean = serde_json::Map::new();
+    for key in ["at", "name", "stack", "componentStack", "documentId", "revision", "nodeId"] {
+        if let Some(value) = record.get(key) {
+            if let Some(text) = value.as_str() { clean.insert(key.to_string(), serde_json::Value::String(text.chars().take(3000).collect())); }
+            else if value.is_u64() { clean.insert(key.to_string(), value.clone()); }
+        }
+    }
+    let mut file = OpenOptions::new().create(true).append(true).open(path).map_err(|e| e.to_string())?;
+    writeln!(file, "{}", serde_json::Value::Object(clean)).map_err(|e| e.to_string())
+}

@@ -12,13 +12,16 @@ import {
   operationSchema,
   parseDocument,
   validateDocument,
+  LIMITS, checkInputBudget,
   type DiagramDocument,
 } from "@drawit/core";
-import { documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile } from "@drawit/core/node";
+import { documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile, writeExportFile } from "@drawit/core/node";
 import { layoutDocument } from "@drawit/layout";
 import { renderDocumentSvg } from "@drawit/render";
 import { renderRasterSvg, renderReviewPng, svgToPng } from "@drawit/render/png";
+import { renderJobs } from "@drawit/render/jobs";
 import type { ClientMessage, SessionEvent, SessionResponse, ViewState } from "./protocol.js";
+import { clientMessageSchema } from "./protocol.js";
 
 function pidAlive(pid: number): boolean {
   try {
@@ -60,20 +63,21 @@ export async function startSessionHost(options: { home: string; port?: number; r
   try {
     const existing = JSON.parse(await readFile(sessionFile, "utf8")) as { pid?: number };
     if (existing.pid && pidAlive(existing.pid) && existing.pid !== process.pid) {
-      if (!options.replace) throw new DrawitError("TRANSACTION_FAILED", "A drawit session is already running");
-      process.kill(existing.pid);
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // A PID file is not proof of process ownership. Never kill from stale metadata.
+      throw new DrawitError("TRANSACTION_FAILED", "A drawit session is already running or its PID needs verification");
     }
   } catch (error) {
     if (error instanceof DrawitError) throw error;
   }
 
   const token = randomBytes(32).toString("hex");
-  const server = new WebSocketServer({ host: "127.0.0.1", port: options.port ?? 0 });
+  const sessionId = randomBytes(12).toString("hex");
+  let documentEpoch = 0;
+  const server = new WebSocketServer({ host: "127.0.0.1", port: options.port ?? 0, maxPayload: LIMITS.messageBytes });
   await new Promise<void>((resolve, reject) => { server.once("listening", resolve); server.once("error", reject); });
   const address = server.address();
   const port = typeof address === "object" && address ? address.port : 0;
-  await writeFile(sessionFile, JSON.stringify({ port, token, pid: process.pid }, null, 2));
+  await writeFile(sessionFile, JSON.stringify({ port, token, pid: process.pid }, null, 2), { mode: 0o600 });
 
   const listed = await readJsonDir(options.home);
   const initial = listed.find((item) => item.documentId === "doc_binary_search") ?? listed[0];
@@ -92,7 +96,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
   const sockets = new Set<WebSocket>();
   const allSockets = new Set<WebSocket>();
   const send = (socket: WebSocket, payload: SessionResponse | SessionEvent) => {
-    if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(payload));
+    if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ sessionId, documentEpoch, ...payload }));
   };
   const broadcast = (payload: SessionEvent) => {
     for (const socket of sockets) send(socket, payload);
@@ -103,7 +107,9 @@ export async function startSessionHost(options: { home: string; port?: number; r
   };
 
   let savedDocumentJson = JSON.stringify(await controller.getSnapshot());
+  let activeId = (await controller.getSnapshot()).documentId;
   controller.subscribe((document, record, dirty) => {
+    if (document.documentId !== activeId) { documentEpoch++; activeId = document.documentId; }
     view.selection = view.selection.filter((id) => document.nodes.some((node) => node.id === id) || document.edges.some((edge) => edge.id === id));
     if (!dirty) savedDocumentJson = JSON.stringify(document);
     broadcast({
@@ -143,6 +149,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
   server.on("connection", (socket) => {
     // Only authenticated clients receive document broadcasts.
     allSockets.add(socket);
+    socket.on("error", () => { sockets.delete(socket); });
     socket.on("close", () => { sockets.delete(socket); allSockets.delete(socket); });
     socket.on("message", (data) => {
       void handle(socket, data.toString()).catch((error) => {
@@ -154,8 +161,13 @@ export async function startSessionHost(options: { home: string; port?: number; r
   async function handle(socket: WebSocket, raw: string): Promise<void> {
     let message: ClientMessage;
     try {
-      message = JSON.parse(raw) as ClientMessage;
-    } catch {
+      const input: unknown = JSON.parse(raw);
+      checkInputBudget(input);
+      const parsed = clientMessageSchema.safeParse(input);
+      if (!parsed.success) throw new DrawitError("VALIDATION_ERROR", "Invalid session message");
+      message = parsed.data as ClientMessage;
+    } catch (error) {
+      send(socket, fail("invalid", error instanceof DrawitError ? error : new DrawitError("VALIDATION_ERROR", "Invalid session message")));
       return;
     }
     if (!message.requestId) return;
@@ -210,6 +222,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
   }
 
   async function dispatch(message: ClientMessage): Promise<SessionResponse> {
+    if (message.expectedDocumentId && message.expectedDocumentId !== (await controller.getSnapshot()).documentId) throw new DrawitError("REVISION_CONFLICT", "The active document changed; reread before editing");
     switch (message.type) {
       case "get":
       case "subscribe":
@@ -269,7 +282,7 @@ export async function startSessionHost(options: { home: string; port?: number; r
       case "list":
         return { type: "response", requestId: message.requestId, ok: true, documents: await readJsonDir(options.home) };
       case "setView":
-        view.selection = message.selection ?? [];
+        { const doc = await controller.getSnapshot(); view.selection = [...new Set(message.selection ?? [])].filter((id) => doc.nodes.some((node) => node.id === id) || doc.edges.some((edge) => edge.id === id)); }
         if (message.viewport) view.viewport = message.viewport;
         broadcast({ type: "event", event: "view", view });
         return { type: "response", requestId: message.requestId, ok: true, view, revision: (await controller.getSnapshot()).revision };
@@ -335,8 +348,8 @@ export async function startSessionHost(options: { home: string; port?: number; r
     if (!result.ok) return { type: "response", requestId: message.requestId, ...result, ...flags };
     let pngBase64: string | undefined;
     if (message.type === "preview" && message.includeReviewImage) {
-      const rendered = await renderReviewPng(result.document);
-      pngBase64 = rendered.png.toString("base64");
+      const rendered = await renderJobs.run({ kind: "review", document: result.document });
+      pngBase64 = Buffer.from(rendered.png!).toString("base64");
     }
     return {
       type: "response",
@@ -360,32 +373,32 @@ export async function startSessionHost(options: { home: string; port?: number; r
     await ensureDocument(message.documentId);
     const document = await controller.getSnapshot();
     const background = message.background;
-    const svg = message.format === "svg" ? renderDocumentSvg(document, { background, padding: 24 }) : renderRasterSvg(document, { background, padding: 24 });
+    const rendered = await renderJobs.run({ kind: message.format === "svg" ? "svg" : "png", document, options: { background, padding: 24 }, width: Math.min(4096, document.canvas.width * (message.scale ?? 2)) });
     if (message.format === "svg") {
+      const svg = rendered.svg!;
       const exportPath = message.fileName ? safeExportPath(options.home, message.fileName.endsWith(".svg") ? message.fileName : `${message.fileName}.svg`) : undefined;
-      if (exportPath) await writeFile(exportPath, svg);
+      if (exportPath) await writeExportFile(exportPath, svg);
       return { type: "response", requestId: message.requestId, ok: true, revision: document.revision, svg, exportPath };
     }
-    const width = Math.min(4096, Math.max(1, (Number(/width="([0-9.]+)"/.exec(svg)?.[1] ?? 800) * (message.scale ?? 2))));
-    const png = await svgToPng(svg, width);
+    const png = Buffer.from(rendered.png!);
     const exportPath = message.fileName ? safeExportPath(options.home, message.fileName.endsWith(".png") ? message.fileName : `${message.fileName}.png`) : undefined;
-    if (exportPath) await writeFile(exportPath, png);
+    if (exportPath) await writeExportFile(exportPath, png);
     return { type: "response", requestId: message.requestId, ok: true, revision: document.revision, pngBase64: png.toString("base64"), mimeType: "image/png", exportPath };
   }
 
   async function review(message: ClientMessage): Promise<SessionResponse> {
     await ensureDocument(message.documentId);
     const document = await controller.getSnapshot();
-    const rendered = await renderReviewPng(document, { annotateIds: message.annotateIds ?? true });
+    const rendered = await renderJobs.run({ kind: "review", document, options: { annotateIds: message.annotateIds ?? true } });
     return {
       type: "response",
       requestId: message.requestId,
       ok: true,
       revision: document.revision,
-      pngBase64: rendered.png.toString("base64"),
+      pngBase64: Buffer.from(rendered.png!).toString("base64"),
       mimeType: "image/png",
       manifest: rendered.manifest,
-      warnings: rendered.manifest.warnings,
+      warnings: rendered.manifest!.warnings,
     };
   }
 

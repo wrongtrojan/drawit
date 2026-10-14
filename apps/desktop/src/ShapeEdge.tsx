@@ -1,5 +1,5 @@
 import type { DiagramEdge } from "@drawit/core";
-import { renderEdgeSvg } from "@drawit/render";
+import { renderEdgeSvg } from "@drawit/render/browser";
 import type { Edge, EdgeProps } from "@xyflow/react";
 
 export function ShapeEdge({ id, data, sourceX, sourceY, targetX, targetY }: EdgeProps<Edge<{ diagramEdge: DiagramEdge }>>) {

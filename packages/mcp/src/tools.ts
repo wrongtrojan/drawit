@@ -40,7 +40,7 @@ export function registerDrawitTools(server: McpServer): void {
       description: "Create a new drawit diagram and make it the active document. If the editor is running, it switches to this diagram. Does not modify any existing diagram. Example: {\"title\":\"Architecture\"}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({ title: z.string().min(1).max(200).describe("Diagram title") }),
     },
-    async ({ title }) => text(compactResult(await invoke({ type: "create", title, source: "mcp" }), true)),
+    async ({ title }) => text(compactResult(await invoke({ type: "create", title, source: "mcp" }))),
   );
 
   server.registerTool(
@@ -49,7 +49,7 @@ export function registerDrawitTools(server: McpServer): void {
       description: "Read the structured diagram document. Use this before edits so you have the current revision and object ids. Does not modify the diagram.",
       inputSchema: z.object({ documentId: documentId.optional() }),
     },
-    async ({ documentId: id }) => text(compactResult(await invoke({ type: "get", documentId: id }), true)),
+    async ({ documentId: id }) => text(compactResult(await invoke({ type: "get", documentId: id }))),
   );
 
   server.registerTool(
@@ -81,7 +81,7 @@ export function registerDrawitTools(server: McpServer): void {
       description: "Focus the running drawit editor on a diagram. Fails with EDITOR_NOT_RUNNING when the desktop app is closed. Does not change object geometry. Example: {\"documentId\":\"doc_binary_search\"}. REVISION_CONFLICT, VALIDATION_ERROR and EDITOR_NOT_RUNNING do not change document content. Save dirty content before switching.",
       inputSchema: z.object({ documentId: documentId.optional() }),
     },
-    async ({ documentId: id }) => text(compactResult(await invoke({ type: "open", documentId: id }), true)),
+    async ({ documentId: id }) => text(compactResult(await invoke({ type: "open", documentId: id }))),
   );
 
   server.registerTool(

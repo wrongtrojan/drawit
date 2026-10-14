@@ -20,7 +20,8 @@
     "@xyflow/react": "^12.6.0",
     "katex": "^0.16.22",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.5.0",

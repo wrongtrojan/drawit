@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { LIMITS } from "./limits.js";
 
 export const SCHEMA_VERSION = 1 as const;
 
@@ -24,8 +25,8 @@ export type NodeStyle = z.infer<typeof nodeStyleSchema>;
 
 const baseFields = {
   id: idSchema,
-  x: z.number().finite(),
-  y: z.number().finite(),
+  x: z.number().finite().min(-LIMITS.coordinate).max(LIMITS.coordinate),
+  y: z.number().finite().min(-LIMITS.coordinate).max(LIMITS.coordinate),
   width: z.number().positive().finite().max(8000),
   height: z.number().positive().finite().max(8000),
   parentId: idSchema.optional(),
@@ -285,8 +286,8 @@ export const documentSchema = z.object({
   revision: z.number().int().nonnegative(),
   title: z.string().min(1).max(200),
   canvas: canvasSchema,
-  nodes: z.array(nodeSchema),
-  edges: z.array(edgeSchema),
+  nodes: z.array(nodeSchema).max(LIMITS.nodes),
+  edges: z.array(edgeSchema).max(LIMITS.edges),
   styles: themeSchema.optional(),
   layout: layoutConfigSchema.optional(),
   meta: z.record(z.string(), z.unknown()).optional(),

@@ -8,11 +8,13 @@ import {
   parseDocument,
   validateDocument,
 } from "@drawit/core";
-import { documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile } from "@drawit/core/node";
+import { documentsDir, exportsDir, readDocumentFile, safeDocumentPath, safeExportPath, writeDocumentFile, writeExportFile } from "@drawit/core/node";
 import { layoutDocument } from "@drawit/layout";
 import { renderDocumentSvg } from "@drawit/render";
 import { renderRasterSvg, renderReviewPng, svgToPng } from "@drawit/render/png";
+import { renderJobs } from "@drawit/render/jobs";
 import type { SessionResponse } from "@drawit/session/protocol";
+import { clientMessageSchema } from "@drawit/session/protocol";
 
 const activeDocuments = new Map<string, string>();
 const queues = new Map<string, Promise<void>>();
@@ -42,6 +44,8 @@ async function dispatchFile(home: string, body: Record<string, unknown>): Promis
     if (body.type === "openEditor" || body.type === "open") {
       return { type: "response", requestId, ok: false, code: "EDITOR_NOT_RUNNING", message: "The drawit editor is not running. Start it, then retry." };
     }
+    const checked = clientMessageSchema.safeParse({ ...body, requestId, token: "offline" });
+    if (!checked.success) throw new DrawitError("VALIDATION_ERROR", "Invalid file request");
     if (body.type === "create") {
       const document = createDocument(typeof body.title === "string" && body.title.trim() ? body.title : "未命名图示");
       const path = safeDocumentPath(home, document.documentId);
@@ -85,19 +89,20 @@ async function dispatchFile(home: string, body: Record<string, unknown>): Promis
     if (body.type === "render" || body.type === "review") {
       const document = await controller.getSnapshot();
       if (body.type === "review" || body.format === "png") {
-        const rendered = body.type === "review" ? await renderReviewPng(document, { annotateIds: typeof body.annotateIds === "boolean" ? body.annotateIds : true }) : { png: await svgToPng(renderRasterSvg(document, { background: typeof body.background === "string" ? body.background : undefined }), 1200), manifest: undefined };
+        const job = await renderJobs.run({ kind: body.type === "review" ? "review" : "png", document, options: { annotateIds: typeof body.annotateIds === "boolean" ? body.annotateIds : true, background: typeof body.background === "string" ? body.background : undefined } });
+        const rendered = { ...job, png: Buffer.from(job.png!) };
         const exportPath = typeof body.fileName === "string" ? safeExportPath(home, body.fileName.endsWith(".png") ? body.fileName : `${body.fileName}.png`) : undefined;
         if (exportPath) {
           await mkdir(exportsDir(home), { recursive: true });
-          await writeFile(exportPath, rendered.png);
+          await writeExportFile(exportPath, rendered.png);
         }
         return { type: "response", requestId, ok: true, revision: document.revision, pngBase64: rendered.png.toString("base64"), mimeType: "image/png", manifest: rendered.manifest, exportPath };
       }
-      const svg = renderDocumentSvg(document, { background: typeof body.background === "string" ? body.background : undefined });
+      const svg = (await renderJobs.run({ kind: "svg", document, options: { background: typeof body.background === "string" ? body.background : undefined } })).svg!;
       const exportPath = typeof body.fileName === "string" ? safeExportPath(home, body.fileName.endsWith(".svg") ? body.fileName : `${body.fileName}.svg`) : undefined;
       if (exportPath) {
         await mkdir(exportsDir(home), { recursive: true });
-        await writeFile(exportPath, svg);
+        await writeExportFile(exportPath, svg);
       }
       return { type: "response", requestId, ok: true, revision: document.revision, svg, exportPath };
     }
@@ -125,7 +130,7 @@ async function dispatchFile(home: string, body: Record<string, unknown>): Promis
       await controller.markSaved(path);
     }
     let pngBase64: string | undefined;
-    if (body.type === "preview" && body.includeReviewImage) pngBase64 = (await renderReviewPng(result.document)).png.toString("base64");
+    if (body.type === "preview" && body.includeReviewImage) pngBase64 = Buffer.from((await renderJobs.run({ kind: "review", document: result.document })).png!).toString("base64");
     return { type: "response", requestId, ok: true, preview: body.type === "preview", document: result.document, revision: result.revision, operationId: result.operationId, warnings: result.warnings, summary: result.summary, pngBase64, mimeType: pngBase64 ? "image/png" : undefined };
   } catch (error) {
     const wrapped = error instanceof DrawitError ? error : new DrawitError("TRANSACTION_FAILED", error instanceof Error ? error.message : "File operation failed");

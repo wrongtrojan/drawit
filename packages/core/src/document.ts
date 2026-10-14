@@ -1,4 +1,5 @@
 import { DrawitError } from "./errors.js";
+import { checkInputBudget } from "./limits.js";
 import { createId, isRecord } from "./ids.js";
 import {
   DOCUMENT_FIELD_KEYS,
@@ -159,6 +160,7 @@ function absorb(raw: Record<string, unknown>, keys: readonly string[]): Record<s
 }
 
 export function parseDocument(input: unknown): DiagramDocument {
+  try { checkInputBudget(input); } catch (error) { throw new DrawitError("VALIDATION_ERROR", String(error)); }
   if (!isRecord(input)) {
     throw new DrawitError("VALIDATION_ERROR", "Document must be a JSON object");
   }

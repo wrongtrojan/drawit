@@ -5,7 +5,8 @@ import { liteAdaptor } from "mathjax-full/js/adaptors/liteAdaptor.js";
 import { RegisterHTMLHandler } from "mathjax-full/js/handlers/html.js";
 import { AllPackages } from "mathjax-full/js/input/tex/AllPackages.js";
 import type { DiagramNode } from "@drawit/core";
-import { escapeXml } from "./svg.js";
+const escapeXml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[char]!);
+const cache = new Map<string, string>();
 
 const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
@@ -16,8 +17,13 @@ const math = mathjax.document("", {
 
 // MathJax produces path-based SVG so resvg needs neither HTML nor web fonts.
 export function renderEquationSvg(node: Extract<DiagramNode, { type: "equation" }>): string {
-  const element = math.convert(node.latex, { display: true });
-  const svg = adaptor.outerHTML(element);
+  let svg = cache.get(node.latex);
+  if (!svg) {
+    const element = math.convert(node.latex, { display: true });
+    svg = adaptor.outerHTML(element);
+    if (/data-mml-node="merror"|<a\b|(?:href|xlink:href)=/i.test(svg)) throw new Error("Invalid or unsafe formula");
+    cache.set(node.latex, svg); if (cache.size > 256) cache.delete(cache.keys().next().value!);
+  } else { cache.delete(node.latex); cache.set(node.latex, svg); }
   const start = svg.indexOf("<svg");
   const end = svg.lastIndexOf("</svg>");
   if (start < 0 || end < 0) throw new Error(`Cannot render equation ${node.id}`);

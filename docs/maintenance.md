@@ -13,7 +13,7 @@
 - MCP 是另一个 stdio 进程。编辑器开着时，工具只转发到会话。编辑器关着时，同一个控制器读写文件。`diagram_open_editor` 不启动窗口；编辑器未运行时返回 `EDITOR_NOT_RUNNING`。
 - 磁盘上的文件有变化时只提示。用户点击“重新加载”后，内存换成磁盘内容，版本号继续增加。
 - 预览、画布、导出和审查图共用 `packages/render` 的 SVG。审查结果是 MCP 图像；成功表示图已经生成。
-- Agent 提交的脚本和 HTML 保存在文档中，运行时不会执行。公式渲染关闭 KaTeX 的 `trust`。
+- Agent 提交的脚本和 HTML 保存在文档中，运行时不会执行。公式使用 MathJax 路径 SVG；不接入 HTML、require、autoload 扩展，不在图内执行 HTML。浏览器与会话渲染在可终止的工作线程内进行。
 
 错误码：`REVISION_CONFLICT`、`NOT_FOUND`、`VALIDATION_ERROR`、`SCHEMA_INCOMPATIBLE`、`EDITOR_NOT_RUNNING`、`PATH_FORBIDDEN`、`TRANSACTION_FAILED`、`EXPORT_FAILED`。
 
@@ -123,3 +123,17 @@ pnpm --filter @drawit/desktop build
 ## 范围
 
 产品保持本机编辑、本机会话和本机导出。账号、云同步和云端识图不在范围内。界面上的控件都接到一项已实现的操作。
+
+## 稳定性与资源边界
+
+编辑器连接与快照由代际、会话标识及 documentEpoch 隔离。断线保留画面、暂停写入并重新订阅；超时的写请求不重放。根、画布和节点边界允许显式恢复，原生 WebView 故障需另行验证。
+
+`packages/core/src/limits.ts` 集中定义消息、对象、树、单元格、坐标、渲染时间及像素预算。内部 IO 拒绝链接文件和链接 documents/exports 目录；MCP 不接受任意磁盘路径。render-worker.cjs 必须随 Node 运行时一起打包。
+
+原安装版复现及新包压力测试使用隔离数据目录：
+
+```sh
+node scripts/stress-session.mjs --home=/absolute/test-home --iterations=10000 --duration=1800
+```
+
+此脚本只检查会话修订、同步和磁盘一致性；窗口观察、原生对话框、拖动缩放与 WebView 故障恢复必须单独验收。不得把会话测试报告写作窗口视觉验收通过。
