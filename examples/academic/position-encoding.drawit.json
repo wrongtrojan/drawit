@@ -4,7 +4,7 @@
   "revision": 0,
   "title": "Position Encoding",
   "canvas": {
-    "width": 1300,
+    "width": 1330,
     "height": 502,
     "background": "#ffffff",
     "gridSize": 20
@@ -52,7 +52,7 @@
       "highlightCells": [],
       "id": "embedding",
       "x": 40,
-      "y": 154,
+      "y": 145,
       "width": 1,
       "height": 1,
       "style": {
@@ -63,7 +63,7 @@
       "type": "equation",
       "latex": "+",
       "id": "plus",
-      "x": 366.24300000000005,
+      "x": 408.469,
       "y": 214,
       "width": 36,
       "height": 48,
@@ -112,8 +112,8 @@
       "highlightCols": [],
       "highlightCells": [],
       "id": "position",
-      "x": 462.24300000000005,
-      "y": 153.67000000000002,
+      "x": 516.469,
+      "y": 145,
       "width": 1,
       "height": 1,
       "style": {
@@ -124,7 +124,7 @@
       "type": "equation",
       "latex": "=",
       "id": "equal",
-      "x": 789.3660000000001,
+      "x": 884.938,
       "y": 214,
       "width": 36,
       "height": 48,
@@ -173,8 +173,8 @@
       "highlightCols": [],
       "highlightCells": [],
       "id": "encoded",
-      "x": 885.3660000000001,
-      "y": 154,
+      "x": 992.938,
+      "y": 145,
       "width": 1,
       "height": 1,
       "style": {
@@ -186,8 +186,8 @@
       "text": "Token embedding X",
       "id": "embedding_label",
       "x": 40,
-      "y": 104,
-      "width": 266.24300000000005,
+      "y": 95,
+      "width": 296.469,
       "height": 32,
       "style": {
         "role": "caption"
@@ -197,9 +197,9 @@
       "type": "text",
       "text": "Position encoding P",
       "id": "position_label",
-      "x": 462.24300000000005,
-      "y": 103.67000000000002,
-      "width": 267.12300000000005,
+      "x": 516.469,
+      "y": 95,
+      "width": 296.469,
       "height": 32,
       "style": {
         "role": "caption"
@@ -209,9 +209,9 @@
       "type": "text",
       "text": "Encoded input Z",
       "id": "encoded_label",
-      "x": 885.3660000000001,
-      "y": 104,
-      "width": 266.24300000000005,
+      "x": 992.938,
+      "y": 95,
+      "width": 296.469,
       "height": 32,
       "style": {
         "role": "caption"
@@ -245,7 +245,7 @@
       "type": "text",
       "text": "Position Encoding",
       "id": "title",
-      "x": 390,
+      "x": 405,
       "y": 28,
       "width": 520,
       "height": 48,

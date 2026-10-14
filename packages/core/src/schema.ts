@@ -27,6 +27,12 @@ export const nodeStyleSchema = z.object({
 });
 export type NodeStyle = z.infer<typeof nodeStyleSchema>;
 
+/** Style fields on updateNodes; null clears an explicit override. */
+export const nodeStylePatchSchema = nodeStyleSchema.partial().extend({
+  fontSize: z.number().min(8).max(96).nullable().optional(),
+});
+export type NodeStylePatch = z.infer<typeof nodeStylePatchSchema>;
+
 const baseFields = {
   id: idSchema,
   x: z.number().finite().min(-LIMITS.coordinate).max(LIMITS.coordinate),

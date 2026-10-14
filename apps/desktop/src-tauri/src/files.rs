@@ -3,7 +3,7 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fs::{self, File, OpenOptions},
+    fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
     sync::Mutex,
@@ -168,6 +168,7 @@ fn read_regular(path: &Path) -> Result<Vec<u8>, String> {
 fn atomic_write(dir: &Directory, name: &str, bytes: &[u8]) -> Result<(), String> {
     use std::{
         ffi::CString,
+        fs::File,
         os::fd::{AsRawFd, FromRawFd},
     };
     verify_directory(dir)?;

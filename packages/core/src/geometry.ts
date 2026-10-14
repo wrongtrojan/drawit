@@ -1,4 +1,6 @@
+import { ACADEMIC } from "./academic.js";
 import { contentSize, gridLayout } from "./contentLayout.js";
+import { routeEdgePoints } from "./routeEdge.js";
 import type { DiagramNode } from "./schema.js";
 import type { DiagramEdge } from "./schema.js";
 import { measureText } from "./text.js";
@@ -77,15 +79,14 @@ export function contentBounds(nodes: DiagramNode[], canvas: { width: number; hei
   for (const edge of edges) {
     const endpoints = edgeEndpoints(nodes, edge); if (!endpoints) continue;
     const { source, target, sourceHandle, targetHandle } = endpoints;
-    const points = [source, target, ...(edge.waypoints ?? [])];
-    if (!edge.waypoints?.length && edge.router === "curved") points.push({ x: (source.x + target.x) / 2, y: (source.y + target.y) / 2 - 30 });
+    const points = routeEdgePoints({ router: edge.router, waypoints: edge.waypoints, sourceHandle: edge.sourceHandle ?? sourceHandle, targetHandle: edge.targetHandle ?? targetHandle }, source, target, sourceHandle, targetHandle);
     if (!edge.waypoints?.length && edge.router === "bezier") {
       const distance = Math.max(40, Math.abs(target.x - source.x) / 2);
       for (const [point, side] of [[source, sourceHandle], [target, targetHandle]] as const) points.push({ x: point.x + (side === "left" ? -distance : side === "right" ? distance : 0), y: point.y + (side === "top" ? -distance : side === "bottom" ? distance : 0) });
     }
     const margin = (edge.width ?? 1.5) * 5;
     for (const point of points) { minX = Math.min(minX, point.x - margin); minY = Math.min(minY, point.y - margin); maxX = Math.max(maxX, point.x + margin); maxY = Math.max(maxY, point.y + margin); }
-    if (edge.label) { const point = edgeLabelPosition(edge, source, target), width = measureText(edge.label, 12); minX = Math.min(minX, point.x - width / 2); maxX = Math.max(maxX, point.x + width / 2); minY = Math.min(minY, point.y - 16); maxY = Math.max(maxY, point.y + 4); }
+    if (edge.label) { const point = edgeLabelPosition(edge, source, target), width = measureText(edge.label, ACADEMIC.indexSize); minX = Math.min(minX, point.x - width / 2); maxX = Math.max(maxX, point.x + width / 2); minY = Math.min(minY, point.y - 16); maxY = Math.max(maxY, point.y + 4); }
   }
   return { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) };
 }
@@ -110,12 +111,7 @@ export function projectSemanticNode(nodes: DiagramNode[], node: DiagramNode): Di
 }
 
 export function edgeLabelPosition(edge: import("./schema.js").DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }) {
-  let points = [source, ...(edge.waypoints ?? []), target];
-  if (!edge.waypoints?.length && edge.router === "orthogonal") {
-    const horizontal = [edge.sourceHandle, edge.targetHandle].some((side) => side === "left" || side === "right");
-    const x = (source.x + target.x) / 2, y = (source.y + target.y) / 2;
-    points = horizontal ? [source, { x, y: source.y }, { x, y: target.y }, target] : [source, { x: source.x, y }, { x: target.x, y }, target];
-  }
+  const points = routeEdgePoints(edge, source, target, edge.sourceHandle, edge.targetHandle);
   const lengths = points.slice(1).map((point, index) => Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y));
   let remaining = lengths.reduce((sum, value) => sum + value, 0) / 2;
   for (let index = 0; index < lengths.length; index++) {

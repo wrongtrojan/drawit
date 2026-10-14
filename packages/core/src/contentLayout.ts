@@ -1,25 +1,25 @@
 import type { DiagramNode, TreeValue } from "./schema.js";
-import { wrapText, measureText } from "./text.js";
+import { wrapText, measureText, lineHeight } from "./text.js";
 import { ACADEMIC, resolveNodeStyle } from "./academic.js";
 
 export const textWidth = measureText;
-export const labelWidth = (value: string, size = 14): number => Math.max(64, Math.min(240, textWidth(value, size) + 24));
-export const labelHeight = (value: string, width: number, size = 14): number => Math.max(36, wrapText(value, size, Math.max(8, width - 16)).length * size * 1.25 + 16);
+export const labelWidth = (value: string, size: number = ACADEMIC.fontSize): number => Math.max(64, Math.min(240, textWidth(value, size) + ACADEMIC.labelPadX));
+export const labelHeight = (value: string, width: number, size: number = ACADEMIC.fontSize): number => Math.max(36, wrapText(value, size, Math.max(8, width - 16)).length * lineHeight(size) + ACADEMIC.labelPadY);
 
 export type GridNode = Extract<DiagramNode, { type: "matrix" | "table" | "vector" | "array" | "stack" | "queue" }>;
 export function gridLayout(node: GridNode) {
-  const size = node.style?.fontSize ?? 14;
+  const size = node.style?.fontSize ?? ACADEMIC.fontSize;
   const rows = node.type === "matrix" ? node.cells : node.type === "table" ? [node.headers, ...node.cells] : node.type === "vector" ? (node.orientation === "column" ? node.components.map((item) => [item]) : [node.components]) : node.type === "stack" ? node.items.map((item) => [item]) : [node.items];
   const columns = Math.max(1, rows[0]?.length ?? 0);
   if (node.type === "matrix" || node.type === "vector") {
     const bracket = node.bracket !== "none" ? 20 : 0;
-    const padX = 8 + bracket + (node.rowLabels.length ? Math.max(...node.rowLabels.map((value) => textWidth(value, 11))) + 8 : 0);
-    const right = node.dimensionLabel ? Math.max(24, 8 + bracket) + textWidth(node.dimensionLabel, 11) + 8 : 8 + bracket;
+    const padX = 8 + bracket + (node.rowLabels.length ? Math.max(...node.rowLabels.map((value) => textWidth(value, ACADEMIC.indexSize))) + 8 : 0);
+    const right = node.dimensionLabel ? Math.max(24, 8 + bracket) + textWidth(node.dimensionLabel, ACADEMIC.indexSize) + 8 : 8 + bracket;
     const padY = node.columnLabels.length ? 24 : 8;
     const requested = Math.max(ACADEMIC.cell, (node.width - padX - right) / columns, (node.height - padY - 8) / rows.length);
     const text = (value: string) => node.cellFormat === "math" ? value.replace(/\\(?:hat|bar|vec|tilde|overline|underline|mathbf|mathrm|mathit|left|right)\b/g, "").replace(/\\[a-zA-Z]+/g, "x").replace(/[{}_]/g, "") : value;
     const minimumWidth = Math.max(requested, ...rows.flat().map((value) => Math.min(240, textWidth(text(value), size) + 16)));
-    const required = Math.max(minimumWidth, ...rows.flat().map((value) => node.cellFormat === "math" ? size * 2 + 12 + Math.min(16, (value.match(/\\frac\b/g) ?? []).length) * size * 1.5 + (/\\(?:sum|prod|int)\b/.test(value) ? size : 0) : wrapText(value, size, minimumWidth - 16).length * size * 1.25 + 16));
+    const required = Math.max(minimumWidth, ...rows.flat().map((value) => node.cellFormat === "math" ? size * 2 + 12 + Math.min(16, (value.match(/\\frac\b/g) ?? []).length) * size * 1.5 + (/\\(?:sum|prod|int)\b/.test(value) ? size : 0) : wrapText(value, size, minimumWidth - 16).length * lineHeight(size) + 16));
     const cell = Math.ceil(required * 100 - 1e-7) / 100;
     // A uniform square grid makes projecting an already projected node idempotent.
     const widths = Array(columns).fill(cell) as number[];
@@ -45,7 +45,7 @@ export function gridLayout(node: GridNode) {
 export interface InternalVertex { id: string; label: string; x: number; y: number; width: number; height: number; parentId?: string }
 export function treeLayout(node: Extract<DiagramNode, { type: "tree" }>) {
   const vertices: InternalVertex[] = [];
-  const size = node.style?.fontSize ?? 14;
+  const size = node.style?.fontSize ?? ACADEMIC.fontSize;
   const spans = new Map<TreeValue, number>();
   const measure = (value: TreeValue): number => {
     const span = Math.max(labelWidth(value.label, size), value.children.reduce((sum, child) => sum + measure(child), 0) + Math.max(0, value.children.length - 1) * 24);
@@ -68,7 +68,7 @@ export function treeLayout(node: Extract<DiagramNode, { type: "tree" }>) {
 }
 
 export function graphLayout(node: Extract<DiagramNode, { type: "graph" }>) {
-  const size = node.style?.fontSize ?? 14;
+  const size = node.style?.fontSize ?? ACADEMIC.fontSize;
   const widths = node.vertices.map((value) => labelWidth(value.label, size));
   const maxWidth = Math.max(...widths);
   const maxHeight = Math.max(...node.vertices.map((value, i) => labelHeight(value.label, widths[i]!, size)));
@@ -102,7 +102,7 @@ export function contentSize(node: DiagramNode): { width: number; height: number 
   if (node.type === "tree") return treeLayout(node);
   if (node.type === "graph") return graphLayout(node);
   if (node.type === "class" || node.type === "entity") {
-    const size = node.style?.fontSize ?? 14;
+    const size = node.style?.fontSize ?? ACADEMIC.fontSize;
     const labels = [...(node.type === "class" && node.stereotype ? [node.stereotype] : []), node.name, ...node.attributes, ...(node.type === "class" ? node.methods : [])];
     const width = Math.max(node.width, ...labels.map((label) => labelWidth(label, size)));
     const height = labels.reduce((sum, label) => sum + labelHeight(label, width, size), 0) + (node.type === "class" ? 48 : 20);
@@ -110,13 +110,13 @@ export function contentSize(node: DiagramNode): { width: number; height: number 
   }
   if (node.type === "axis" && node.direction === "vertical") return { width: Math.max(node.width, 140), height: Math.max(node.height, 360) };
   if (node.type === "tensor") {
-    const size = node.style?.fontSize ?? 14;
+    const size = node.style?.fontSize ?? ACADEMIC.fontSize;
     const width = Math.max(node.width, labelWidth(node.name, size + 2), labelWidth(node.shape, size));
     return { width, height: Math.max(node.height, labelHeight(node.name, width, size + 2) + labelHeight(node.shape, width, size) + 24) };
   }
   if (node.type === "timeline") {
     const width = Math.max(node.width, node.milestones.length * 200 + 32);
-    const height = Math.max(node.height, 120 + Math.max(36, ...node.milestones.map((item) => labelHeight(item.label, 184, node.style?.fontSize ?? 14))));
+    const height = Math.max(node.height, 120 + Math.max(36, ...node.milestones.map((item) => labelHeight(item.label, 184, node.style?.fontSize ?? ACADEMIC.fontSize))));
     return { width, height };
   }
   return node;

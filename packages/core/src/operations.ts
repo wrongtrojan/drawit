@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { ACADEMIC } from "./academic.js";
 import { materializeNode } from "./document.js";
 import { DrawitError } from "./errors.js";
 import { absoluteBox, absolutePosition, isAncestor, visualBodyBox } from "./geometry.js";
@@ -11,7 +12,7 @@ import {
   layoutConfigSchema,
   lineStyleSchema,
   nodeSchema,
-  nodeStyleSchema,
+  nodeStylePatchSchema,
   themeSchema,
   treeValueSchema,
   tableMergeSchema,
@@ -50,7 +51,7 @@ export const nodePatchSchema = z
     parentId: idSchema.nullable().optional(),
     pinned: z.boolean().optional(),
     zIndex: z.number().int().min(-1000).max(1000).optional(),
-    style: nodeStyleSchema.optional(),
+    style: nodeStylePatchSchema.optional(),
     text: z.string().optional(),
     title: z.string().optional(),
     kind: z.enum(["terminator", "process", "decision", "io", "initial", "state", "final"]).optional(),
@@ -113,7 +114,7 @@ export const edgeInputSchema = z
   .strict();
 
 export const operationSchema = z.discriminatedUnion("op", [
-  z.object({ op: z.literal("arrangeRow"), nodeIds: z.array(idSchema).min(2).max(200), gap: z.number().min(0).max(400).default(60), centerY: z.number().finite().optional(), startX: z.number().finite().optional() }),
+  z.object({ op: z.literal("arrangeRow"), nodeIds: z.array(idSchema).min(2).max(200), gap: z.number().min(0).max(400).default(ACADEMIC.gap), centerY: z.number().finite().optional(), startX: z.number().finite().optional() }),
   z.object({ op: z.literal("align"), nodeIds: z.array(idSchema).min(2).max(200), axis: z.enum(["left", "center", "right", "top", "middle", "bottom"]) }),
   z.object({ op: z.literal("distribute"), nodeIds: z.array(idSchema).min(3).max(200), axis: z.enum(["horizontal", "vertical"]) }),
   z.object({ op: z.literal("snapToGrid"), nodeIds: z.array(idSchema).min(1).max(200), gridSize: z.number().positive().max(200).optional() }),
@@ -199,7 +200,13 @@ function updateNodes(
     for (const [key, value] of Object.entries(update.patch)) {
       if (value === undefined) continue;
       if (key === "style") {
-        next.style = { ...(current.style ?? {}), ...(value as NodePatch["style"]) };
+        const patch = value as NodePatch["style"];
+        next.style = { ...(current.style ?? {}) };
+        for (const [styleKey, styleValue] of Object.entries(patch ?? {})) {
+          if (styleValue === null) delete (next.style as Record<string, unknown>)[styleKey];
+          else if (styleValue !== undefined) (next.style as Record<string, unknown>)[styleKey] = styleValue;
+        }
+        if (Object.keys(next.style as object).length === 0) delete next.style;
         continue;
       }
       if (key === "meta") {

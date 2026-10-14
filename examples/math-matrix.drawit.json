@@ -44,7 +44,7 @@
       "highlightCells": [],
       "id": "a",
       "x": 40,
-      "y": 166,
+      "y": 160,
       "width": 1,
       "height": 1,
       "style": {
@@ -55,7 +55,7 @@
       "type": "equation",
       "latex": "\\times",
       "id": "times",
-      "x": 335.37300000000005,
+      "x": 373.259,
       "y": 206,
       "width": 36,
       "height": 48,
@@ -98,8 +98,8 @@
       ],
       "highlightCells": [],
       "id": "b",
-      "x": 431.37300000000005,
-      "y": 146,
+      "x": 481.259,
+      "y": 137,
       "width": 1,
       "height": 1,
       "style": {
@@ -110,7 +110,7 @@
       "type": "equation",
       "latex": "=",
       "id": "equals",
-      "x": 677.616,
+      "x": 757.7280000000001,
       "y": 206,
       "width": 36,
       "height": 48,
@@ -151,8 +151,8 @@
         ]
       ],
       "id": "c",
-      "x": 773.616,
-      "y": 166,
+      "x": 865.7280000000001,
+      "y": 160,
       "width": 1,
       "height": 1,
       "style": {
@@ -164,8 +164,8 @@
       "text": "A",
       "id": "a_label",
       "x": 40,
-      "y": 116,
-      "width": 235.37300000000002,
+      "y": 110,
+      "width": 261.259,
       "height": 32,
       "style": {
         "role": "caption"
@@ -175,9 +175,9 @@
       "type": "text",
       "text": "B",
       "id": "b_label",
-      "x": 431.37300000000005,
-      "y": 96,
-      "width": 186.243,
+      "x": 481.259,
+      "y": 87,
+      "width": 204.469,
       "height": 32,
       "style": {
         "role": "caption"
@@ -187,9 +187,9 @@
       "type": "text",
       "text": "C = AB",
       "id": "c_label",
-      "x": 773.616,
-      "y": 116,
-      "width": 186.243,
+      "x": 865.7280000000001,
+      "y": 110,
+      "width": 204.469,
       "height": 32,
       "style": {
         "role": "caption"

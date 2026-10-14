@@ -6,6 +6,7 @@ import {
   contentBounds,
   nodePlainText,
   resolveNodeStyle, styledNodes, ACADEMIC,
+  routeEdgePoints, routePolylineD,
   wrapText,
   type DiagramDocument,
   type DiagramEdge,
@@ -33,7 +34,7 @@ function color(value: string | undefined, fallback: string): string {
 }
 
 function fontSize(node: DiagramNode): number {
-  return node.style?.fontSize ?? 14;
+  return node.style?.fontSize ?? ACADEMIC.fontSize;
 }
 
 function textBlock(text: string, x: number, y: number, width: number, height: number, size: number, fill: string, family: string): string {
@@ -57,7 +58,7 @@ function points(pairs: Array<[number, number]>): string {
 
 function localShape(node: DiagramNode, fill: string, stroke: string, strokeWidth: number): string {
   const { width, height } = node;
-  if (node.style?.role === "title") return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="24" fill="${fill}" stroke="${stroke}" stroke-width="1"/>`;
+  if (node.style?.role === "title") return `<rect x="1" y="1" width="${width - 2}" height="${height - 2}" rx="${node.style?.cornerRadius ?? 26}" fill="${fill}" stroke="${stroke}" stroke-width="1"/>`;
   if ((node.type === "equation" || node.style?.role === "operator" || node.style?.role === "variable") && strokeWidth === 0) return "";
   switch (node.type) {
     case "lifeline":
@@ -296,32 +297,18 @@ export function renderNodeInner(node: DiagramNode, options: RenderOptions = {}):
 }
 
 export function renderEdgePath(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, sourceSide: HandleSide | undefined, targetSide: HandleSide | undefined): string {
-  const polyline = (points: { x: number; y: number }[]) => {
-    // Zero-length terminal segments can give SVG arrowheads the wrong tangent.
-    const distinct = points.filter((point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y);
-    return `M ${distinct.map((point) => `${point.x} ${point.y}`).join(" L ")}`;
-  };
-  if (edge.waypoints && edge.waypoints.length > 0) {
-    return polyline([source, ...edge.waypoints, target]);
-  }
-  if (edge.router === "straight") return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
-  if (edge.router === "curved") {
+  if (edge.router === "curved" && !(edge.waypoints && edge.waypoints.length > 0)) {
     const midX = (source.x + target.x) / 2;
     const midY = (source.y + target.y) / 2 - 30;
     return `M ${source.x} ${source.y} Q ${midX} ${midY} ${target.x} ${target.y}`;
   }
-  if (edge.router === "bezier") {
+  if (edge.router === "bezier" && !(edge.waypoints && edge.waypoints.length > 0)) {
     const dx = Math.max(40, Math.abs(target.x - source.x) / 2);
     const c1 = sourceSide === "left" || sourceSide === "right" ? { x: source.x + (sourceSide === "right" ? dx : -dx), y: source.y } : { x: source.x, y: source.y + (sourceSide === "bottom" ? dx : -dx) };
     const c2 = targetSide === "left" || targetSide === "right" ? { x: target.x + (targetSide === "right" ? dx : -dx), y: target.y } : { x: target.x, y: target.y + (targetSide === "bottom" ? dx : -dx) };
     return `M ${source.x} ${source.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${target.x} ${target.y}`;
   }
-  const midX = (source.x + target.x) / 2;
-  const midY = (source.y + target.y) / 2;
-  if (sourceSide === "left" || sourceSide === "right" || targetSide === "left" || targetSide === "right") {
-    return polyline([source, { x: midX, y: source.y }, { x: midX, y: target.y }, target]);
-  }
-  return polyline([source, { x: source.x, y: midY }, { x: target.x, y: midY }, target]);
+  return routePolylineD(routeEdgePoints(edge, source, target, sourceSide, targetSide));
 }
 
 export function renderEdgeSvg(edge: DiagramEdge, source: { x: number; y: number }, target: { x: number; y: number }, options: { markerId: string; family?: string; defaultColor?: string; interactive?: boolean }): string {
@@ -333,7 +320,7 @@ export function renderEdgeSvg(edge: DiagramEdge, source: { x: number; y: number 
   const markerEnd = edge.arrowEnd ? ` marker-end="url(#${markerId})"` : "";
   const markerStart = edge.arrowStart ? ` marker-start="url(#${markerId}-start)"` : "";
   const labelPoint = edgeLabelPosition(edge, source, target);
-  const label = edge.label ? `<text x="${labelPoint.x}" y="${labelPoint.y}" text-anchor="middle" font-size="12" font-family="${escapeXml(options.family ?? "Segoe UI, sans-serif")}" fill="${stroke}">${escapeXml(edge.label)}</text>` : "";
+  const label = edge.label ? `<text x="${labelPoint.x}" y="${labelPoint.y}" text-anchor="middle" font-size="${ACADEMIC.indexSize}" font-family="${escapeXml(options.family ?? "Segoe UI, sans-serif")}" fill="${stroke}">${escapeXml(edge.label)}</text>` : "";
   const interaction = options.interactive ? `<path d="${path}" fill="none" stroke="transparent" stroke-width="20" class="react-flow__edge-interaction"/>` : "";
   return `${markers}<path d="${path}" class="react-flow__edge-path" style="fill:none;stroke:${stroke};stroke-width:${edge.width ?? 1.5};stroke-dasharray:${dash || "none"}" fill="none" stroke="${stroke}" stroke-width="${edge.width ?? 1.5}"${dash ? ` stroke-dasharray="${dash}"` : ""}${markerEnd}${markerStart}/>${interaction}${label}`;
 }

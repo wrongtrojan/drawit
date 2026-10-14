@@ -4,7 +4,7 @@ import { SVG } from "mathjax-full/js/output/svg.js";
 import { liteAdaptor } from "mathjax-full/js/adaptors/liteAdaptor.js";
 import { RegisterHTMLHandler } from "mathjax-full/js/handlers/html.js";
 import { AllPackages } from "mathjax-full/js/input/tex/AllPackages.js";
-import type { DiagramNode } from "@drawit/core";
+import { ACADEMIC, type DiagramNode } from "@drawit/core";
 const escapeXml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[char]!);
 const cache = new Map<string, string>();
 
@@ -31,7 +31,7 @@ export function renderEquationSvg(node: Extract<DiagramNode, { type: "equation" 
   const viewBox = /viewBox="([^"]+)"/.exec(inner)?.[1];
   if (!viewBox) throw new Error(`Missing equation bounds for ${node.id}`);
   const [, , w = 1, h = 1] = viewBox.split(/\s+/).map(Number);
-  const fontSize = node.style?.fontSize ?? 14;
+  const fontSize = node.style?.fontSize ?? ACADEMIC.fontSize;
   const naturalW = w / 1000 * fontSize;
   const naturalH = h / 1000 * fontSize;
   const scale = Math.min(1, Math.max(1, node.width - 16) / naturalW, Math.max(1, node.height - 16) / naturalH);

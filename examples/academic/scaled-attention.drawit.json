@@ -35,7 +35,7 @@
       "highlightCells": [],
       "id": "q",
       "x": 40,
-      "y": 177,
+      "y": 171,
       "width": 1,
       "height": 1,
       "style": {
@@ -46,7 +46,7 @@
       "type": "equation",
       "latex": "\\times",
       "id": "dot",
-      "x": 312.13800000000003,
+      "x": 347.254,
       "y": 201,
       "width": 36,
       "height": 48,
@@ -80,8 +80,8 @@
       "highlightCols": [],
       "highlightCells": [],
       "id": "kt",
-      "x": 408.13800000000003,
-      "y": 157,
+      "x": 455.254,
+      "y": 148,
       "width": 1,
       "height": 1,
       "style": {
@@ -92,7 +92,7 @@
       "type": "equation",
       "latex": "=",
       "id": "eq",
-      "x": 640.2760000000001,
+      "x": 716.508,
       "y": 201,
       "width": 36,
       "height": 48,
@@ -122,8 +122,8 @@
       "highlightCols": [],
       "highlightCells": [],
       "id": "scores",
-      "x": 736.2760000000001,
-      "y": 177,
+      "x": 824.508,
+      "y": 171,
       "width": 1,
       "height": 1,
       "style": {
@@ -135,8 +135,8 @@
       "text": "Queries Q",
       "id": "q_label",
       "x": 40,
-      "y": 127,
-      "width": 212.138,
+      "y": 121,
+      "width": 235.25400000000002,
       "height": 32,
       "style": {
         "role": "caption"
@@ -146,9 +146,9 @@
       "type": "text",
       "text": "Keys Kᵀ",
       "id": "kt_label",
-      "x": 408.13800000000003,
-      "y": 107,
-      "width": 172.138,
+      "x": 455.254,
+      "y": 98,
+      "width": 189.25400000000002,
       "height": 32,
       "style": {
         "role": "caption"
@@ -158,9 +158,9 @@
       "type": "text",
       "text": "Scores QKᵀ",
       "id": "scores_label",
-      "x": 736.2760000000001,
-      "y": 127,
-      "width": 172.138,
+      "x": 824.508,
+      "y": 121,
+      "width": 189.25400000000002,
       "height": 32,
       "style": {
         "role": "caption"
@@ -191,7 +191,7 @@
       "highlightCells": [],
       "id": "weights",
       "x": 40,
-      "y": 406,
+      "y": 409.90999999999997,
       "width": 1,
       "height": 1,
       "style": {
@@ -202,7 +202,7 @@
       "type": "equation",
       "latex": "\\times",
       "id": "dotv",
-      "x": 294.13800000000003,
+      "x": 303.434,
       "y": 441,
       "width": 36,
       "height": 48,
@@ -234,8 +234,8 @@
       "highlightCols": [],
       "highlightCells": [],
       "id": "v",
-      "x": 390.13800000000003,
-      "y": 417,
+      "x": 411.434,
+      "y": 411,
       "width": 1,
       "height": 1,
       "style": {
@@ -246,7 +246,7 @@
       "type": "equation",
       "latex": "=",
       "id": "eqv",
-      "x": 662.2760000000001,
+      "x": 718.6880000000001,
       "y": 441,
       "width": 36,
       "height": 48,
@@ -278,8 +278,8 @@
       "highlightCols": [],
       "highlightCells": [],
       "id": "result",
-      "x": 758.2760000000001,
-      "y": 406,
+      "x": 826.6880000000001,
+      "y": 409.90999999999997,
       "width": 1,
       "height": 1,
       "style": {
@@ -291,8 +291,8 @@
       "text": "A = softmax(QKᵀ / √3)",
       "id": "weights_label",
       "x": 40,
-      "y": 356,
-      "width": 194.138,
+      "y": 359.90999999999997,
+      "width": 191.43400000000003,
       "height": 32,
       "style": {
         "role": "caption"
@@ -302,9 +302,9 @@
       "type": "text",
       "text": "Values V",
       "id": "v_label",
-      "x": 390.13800000000003,
-      "y": 367,
-      "width": 212.138,
+      "x": 411.434,
+      "y": 361,
+      "width": 235.25400000000002,
       "height": 32,
       "style": {
         "role": "caption"
@@ -314,9 +314,9 @@
       "type": "text",
       "text": "Output O = AV",
       "id": "result_label",
-      "x": 758.2760000000001,
-      "y": 356,
-      "width": 245.138,
+      "x": 826.6880000000001,
+      "y": 359.90999999999997,
+      "width": 238.524,
       "height": 32,
       "style": {
         "role": "caption"

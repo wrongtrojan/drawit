@@ -10,7 +10,7 @@ describe("academic exports", () => {
   it.each(files)("keeps semantic content, formula paths and bounds in %s", async (file) => {
     const document = parseDocument(JSON.parse(await readFile(new URL(file, directory), "utf8")));
     const errors: string[] = []; const svg = renderDocumentSvg(document, { onRenderError: (id) => errors.push(id) });
-    expect(errors).toEqual([]); expect(svg).not.toContain("foreignObject"); expect(svg).not.toMatch(/NaN|Infinity/); expect(svg).toContain('rx="24"');
+    expect(errors).toEqual([]); expect(svg).not.toContain("foreignObject"); expect(svg).not.toMatch(/NaN|Infinity/); expect(svg).toContain('rx="26"');
     expect(validateDocument(document).filter((issue) => issue.severity === "error")).toEqual([]);
     for (const node of document.nodes) { const box = absoluteBox(document.nodes, node); expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0); expect(box.x + box.width).toBeLessThanOrEqual(document.canvas.width); expect(box.y + box.height).toBeLessThanOrEqual(document.canvas.height); }
     expect(parseDocument(JSON.parse(JSON.stringify(document)))).toEqual(document);

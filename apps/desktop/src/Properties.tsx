@@ -93,6 +93,7 @@ function NodeFields({ node, nodes, onPatch }: { node: DiagramNode; nodes: Diagra
       {node.type === "annotation" ? <ReferenceField label="标注目标" value={node.targetId ?? ""} nodes={nodes.filter((item) => item.id !== node.id)} optional onChange={(targetId) => onPatch({ targetId: targetId || null })} /> : null}
       </fieldset>
       <fieldset><legend>样式</legend>
+      <FontSizeField node={node} onPatch={onPatch} />
       <label>颜色角色<select value={node.style?.tone ?? "neutral"} onChange={(event) => onPatch({ style: { tone: event.target.value as "neutral" | "blue" | "pink" | "green" } })}><option value="neutral">中性</option><option value="blue">蓝 · 输入</option><option value="pink">粉 · 参数</option><option value="green">绿 · 输出</option></select></label>
       {["text", "roundedRectangle", "equation", "annotation"].includes(node.type) ? <label>文字角色<select value={node.style?.role ?? "body"} onChange={(event) => onPatch({ style: { role: event.target.value as "body" | "title" | "operator" | "variable" | "caption" } })}><option value="body">正文</option><option value="title">标题胶囊</option><option value="operator">运算符</option><option value="variable">数学变量</option><option value="caption">维度 / 说明</option></select></label> : null}
       <label>
@@ -148,6 +149,34 @@ function textPatch(node: DiagramNode, value: string): NodePatch {
   if ("title" in node) return { title: value };
   if (node.type === "equation") return { latex: value };
   return { text: value };
+}
+
+function FontSizeField({ node, onPatch }: { node: DiagramNode; onPatch: (patch: NodePatch) => void }) {
+  const resolved = resolveNodeStyle(node).fontSize ?? 16;
+  const custom = node.style?.fontSize;
+  const clamp = (value: number) => Math.min(96, Math.max(8, Math.round(value)));
+  return (
+    <div className="font-size-field">
+      <label>
+        字号 (px)
+        <input
+          type="number"
+          min={8}
+          max={96}
+          step={1}
+          value={custom ?? resolved}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (!Number.isFinite(next)) return;
+            onPatch({ style: { fontSize: clamp(next) } });
+          }}
+        />
+      </label>
+      {custom === undefined ? <p className="muted">当前随文字角色默认（{resolved}px）</p> : (
+        <button type="button" onClick={() => onPatch({ style: { fontSize: null } })}>恢复角色默认</button>
+      )}
+    </div>
+  );
 }
 
 function NumberField({ label, value, onChange, disabled }: { label: string; value: number; disabled?: boolean; onChange: (value: number) => void }) {

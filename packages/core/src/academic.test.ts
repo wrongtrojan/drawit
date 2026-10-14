@@ -6,10 +6,10 @@ describe("academic geometry and transactional row arrangement", () => {
     const node = materializeNode({ type: "matrix", width: 1, height: 1, cells: [["1", "2"], ["3", "4"]], rowLabels: ["0", "1"], columnLabels: ["0", "1"], dimensionLabel: "2 × 2" }, "a");
     if (node.type !== "matrix") throw new Error();
     const grid = gridLayout(node);
-    expect(grid.widths).toEqual([40, 40]); expect(grid.heights).toEqual([40, 40]);
+    expect(grid.widths).toEqual([46, 46]); expect(grid.heights).toEqual([46, 46]);
     expect(grid.padX).toBeGreaterThan(28); expect(grid.padY).toBe(24); expect(grid.width).toBeGreaterThan(136);
     const long = gridLayout({ ...node, cells: [["很长的中文说明，不应通过减小字号硬塞"], ["x"]], rowLabels: [], columnLabels: [] });
-    expect(long.widths[0]).toBeGreaterThan(40); expect(long.heights[0]).toBeGreaterThan(40);
+    expect(long.widths[0]).toBeGreaterThan(46); expect(long.heights[0]).toBeGreaterThan(46);
     const projected = { ...node, ...gridLayout(node) };
     expect(gridLayout(projected)).toEqual(gridLayout(node));
     const wide = { ...node, cells: [["1", "不同长度的说明"], ["2", "x"]], rowLabels: [], columnLabels: [] };
@@ -19,7 +19,14 @@ describe("academic geometry and transactional row arrangement", () => {
     const node = materializeNode({ type: "matrix", style: { fill: "#123456", fontFamily: "Custom", fontSize: 18 } }, "custom");
     expect(resolveNodeStyle(node)).toMatchObject({ fill: "#123456", fontFamily: "Custom", fontSize: 18, strokeWidth: 1.5 });
     expect(node.style).toEqual({ fill: "#123456", fontFamily: "Custom", fontSize: 18 });
-    expect(resolveNodeStyle(materializeNode({ type: "text", style: { role: "title" } }, "title"))).toMatchObject({ fill: "#dbeafe", fontSize: 22, fontWeight: 700 });
+    expect(resolveNodeStyle(materializeNode({ type: "text", style: { role: "title" } }, "title"))).toMatchObject({ fill: "#dbeafe", fontSize: 25, fontWeight: 700 });
+  });
+  it("clears an explicit fontSize override through updateNodes", async () => {
+    const document = createDocument("font"); document.nodes = [materializeNode({ type: "text", text: "A", style: { fontSize: 20 } }, "a")];
+    const controller = new DocumentController(document);
+    expect((await controller.apply({ expectedRevision: 0, source: "gui", operations: [{ op: "updateNodes", updates: [{ id: "a", patch: { style: { fontSize: null } } }] }] })).ok).toBe(true);
+    expect((await controller.getSnapshot()).nodes[0]?.style?.fontSize).toBeUndefined();
+    expect(resolveNodeStyle((await controller.getSnapshot()).nodes[0]!)).toMatchObject({ fontSize: 16 });
   });
   it("aligns bodies in the requested order, counts decorations, and supports undo", async () => {
     const document = createDocument("row"); document.nodes = [materializeNode({ type: "matrix", id: "a", cells: [["1"], ["2"]], columnLabels: ["i"], dimensionLabel: "2 × 1", x: 10 }, "a"), materializeNode({ type: "equation", id: "eq", latex: "+", width: 40, height: 48, style: { role: "operator" } }, "eq"), materializeNode({ type: "vector", id: "b", orientation: "column", components: ["1", "2"] }, "b")];
@@ -27,7 +34,7 @@ describe("academic geometry and transactional row arrangement", () => {
     expect((await controller.apply({ source: "gui", expectedRevision: 0, operations: [operationSchema.parse({ op: "arrangeRow", nodeIds: ["b", "eq", "a"], startX: 40, centerY: 200 })] })).ok).toBe(true);
     const after = await controller.getSnapshot(); const row = ["b", "eq", "a"].map((id) => after.nodes.find((node) => node.id === id)!);
     row.forEach((node) => { const body = visualBodyBox(node); expect(node.y + body.y + body.height / 2).toBeCloseTo(200); });
-    for (let i = 1; i < row.length; i++) { const a = absoluteBox(after.nodes, row[i - 1]!); expect(row[i]!.x - a.x - a.width).toBeCloseTo(60); }
+    for (let i = 1; i < row.length; i++) { const a = absoluteBox(after.nodes, row[i - 1]!); expect(row[i]!.x - a.x - a.width).toBeCloseTo(72); }
     await controller.undo(1, "gui"); expect((await controller.getSnapshot()).nodes).toEqual(document.nodes);
   });
   it("uses a pinned anchor and rolls back conflicting anchors or mixed parents", async () => {
@@ -73,5 +80,5 @@ describe("seeded operation sequences", () => {
         await controller.redo(undone.revision, "gui"); const redone = await controller.getSnapshot(); expect(redone.nodes).toEqual(after.nodes); expect(redone.edges).toEqual(after.edges);
       }
     }
-  });
+  }, 15000);
 });

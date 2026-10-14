@@ -5,6 +5,8 @@ export { DrawitError, asDrawitError, errorCodes } from "./errors.js";
 export type { ErrorCode } from "./errors.js";
 export { createBinarySearchExample } from "./example.js";
 export { absoluteBox, absolutePosition, edgeLabelPosition, edgeEndpoints, nodeConnectionBox, visualBodyBox, contentBounds, intersectionArea, projectSemanticNode } from "./geometry.js";
+export { EDGE_STUB, dedupeRoutePoints, routeEdgePoints, routePolylineD } from "./routeEdge.js";
+export type { RoutePoint } from "./routeEdge.js";
 export type { Box } from "./geometry.js";
 export { createId } from "./ids.js";
 export { applyOperationsToDraft, emptySummary, operationSchema, nodeInputSchema, summarizeChanges } from "./operations.js";

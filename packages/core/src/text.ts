@@ -1,3 +1,6 @@
+import { ACADEMIC } from "./academic.js";
+import { fontAdvances } from "./fontMetrics.js";
+
 export function estimateCharWidth(fontSize: number): number {
   return Math.max(1, fontSize * 0.56);
 }
@@ -31,12 +34,12 @@ export function wrapText(text: string, fontSize: number, maxWidth: number): stri
 }
 
 export function lineHeight(fontSize: number): number {
-  return fontSize * 1.25;
+  return fontSize * ACADEMIC.lineHeightRatio;
 }
 
 export function textBlockHeight(lineCount: number, fontSize: number): number {
   return Math.max(1, lineCount) * lineHeight(fontSize);
 }
-import { fontAdvances } from "./fontMetrics.js";
+
 export function textAdvance(char: string, size: number): number { return size * (fontAdvances[char.codePointAt(0)!] ?? 1); }
-export function measureText(value: string, size = 14): number { return Math.max(0, ...value.split(/\r?\n/).map((line) => Array.from(line).reduce((sum, char) => sum + textAdvance(char, size), 0))); }
+export function measureText(value: string, size: number = ACADEMIC.fontSize): number { return Math.max(0, ...value.split(/\r?\n/).map((line) => Array.from(line).reduce((sum, char) => sum + textAdvance(char, size), 0))); }

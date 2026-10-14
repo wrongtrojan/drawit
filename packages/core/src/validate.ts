@@ -1,3 +1,4 @@
+import { ACADEMIC } from "./academic.js";
 import { absoluteBox, edgeEndpoints, edgeLabelPosition, intersectionArea, isAncestor, nodeMap } from "./geometry.js";
 import { isContainerNode, type DiagramDocument, type DiagramNode, type TreeValue } from "./schema.js";
 import { textBlockHeight, wrapText } from "./text.js";
@@ -225,7 +226,7 @@ export function validateDocument(document: DiagramDocument): Issue[] {
     }
     const text = nodePlainText(node).trim();
     if (text && node.type !== "image" && node.type !== "graph" && node.type !== "tree") {
-      const fontSize = node.style?.fontSize ?? 14;
+      const fontSize = node.style?.fontSize ?? ACADEMIC.fontSize;
       const lines = wrapText(text, fontSize, Math.max(8, box.width - 16));
       if (textBlockHeight(lines.length, fontSize) > box.height - 12) {
         issues.push(issue("warning", "TEXT_OVERFLOW", `Text in ${node.id} may overflow its box`, node.id));

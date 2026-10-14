@@ -25,8 +25,9 @@ async function output(name: string, title: string, document: DiagramDocument, fo
   document.nodes.push(materializeNode({ type: "text", id: "title", text: title, x: (document.canvas.width - 520) / 2, y: 28, width: 520, height: 48, style: { role: "title" } }, "title"));
   document.documentId = `doc_${name.replaceAll("-", "_")}`; document.revision = 0;
   await writeFile(new URL(`${name}.drawit.json`, root), JSON.stringify(document, null, 2) + "\n");
-  await writeFile(new URL(`${name}.svg`, root), await embedDiagramFonts(renderDocumentSvg(document)));
-  await writeFile(new URL(`${name}.png`, root), await svgToPng(renderRasterSvg(document), document.canvas.width + 64, { loadSystemFonts: false }));
+  const svg = await embedDiagramFonts(renderDocumentSvg(document));
+  await writeFile(new URL(`${name}.svg`, root), svg);
+  await writeFile(new URL(`${name}.png`, root), await svgToPng(svg, document.canvas.width + 64, { loadSystemFonts: false }));
   console.error(`${name}: ${document.canvas.width} × ${document.canvas.height}`);
 }
 

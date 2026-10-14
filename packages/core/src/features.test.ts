@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { componentCatalog, createDocument, DocumentController, materializeNode, parseDocument, projectSemanticNode, operationSchema } from "./index.js";
+import { join, resolve } from "node:path";
 import { drawitHome } from "./home.js";
 
 const line = (id: string, x: number) => materializeNode({ type: "lifeline", id, x, y: 40 }, id);
@@ -47,10 +48,10 @@ describe("semantic components and explicit arrangement", () => {
     expect((await controller.getSnapshot()).nodes).toEqual(document.nodes);
   });
   it("chooses native data roots and honors DRAWIT_HOME", () => {
-    expect(drawitHome("darwin", {}, "/user")).toBe("/user/Library/Application Support/drawit");
-    expect(drawitHome("linux", { XDG_DATA_HOME: "/data" }, "/user")).toBe("/data/drawit");
-    expect(drawitHome("linux", { XDG_DATA_HOME: "relative" }, "/user")).toBe("/user/.local/share/drawit");
-    expect(drawitHome("win32", { APPDATA: "/roaming" }, "/user")).toBe("/roaming/drawit");
-    expect(drawitHome("darwin", { DRAWIT_HOME: "/custom" }, "/user")).toBe("/custom");
+    expect(drawitHome("darwin", {}, "/user")).toBe(join("/user", "Library", "Application Support", "drawit"));
+    expect(drawitHome("linux", { XDG_DATA_HOME: "/data" }, "/user")).toBe(join("/data", "drawit"));
+    expect(drawitHome("linux", { XDG_DATA_HOME: "relative" }, "/user")).toBe(join("/user", ".local", "share", "drawit"));
+    expect(drawitHome("win32", { APPDATA: "/roaming" }, "/user")).toBe(join("/roaming", "drawit"));
+    expect(drawitHome("darwin", { DRAWIT_HOME: "/custom" }, "/user")).toBe(resolve("/custom"));
   });
 });

@@ -4,14 +4,29 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createDocument, materializeNode, parseDocument, DocumentController } from "./index.js";
 import { safeExportPath, readDocumentFile, writeDocumentFile, writeExportFile } from "./node.js";
+
+/** Windows often blocks symlinks without developer mode; skip the case instead of failing CI locally. */
+async function symlinkUnlessWin32Blocked(target: string, path: string, type?: "dir"): Promise<boolean> {
+  try {
+    await symlink(target, path, type);
+    return true;
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+    if (process.platform === "win32" && (code === "EPERM" || code === "ENOENT")) return false;
+    throw error;
+  }
+}
+
 describe("filesystem and document safety", () => {
   it.each(["../escape.svg", "a/b.png", "a\\b.svg", "C:stream.svg", "CON.png", "aux.svg", "LPT1.svg", "COM¹.png", "trail. ", "", "nul", "a\u0000.svg"])("rejects unsafe file name %s", (name) => expect(() => safeExportPath("/tmp/test", name)).toThrow());
   it("rejects linked files and linked export directories without changing the destination", async () => {
     const home = await mkdtemp(join(tmpdir(), "drawit-links-")); await mkdir(join(home, "documents")); await mkdir(join(home, "exports"));
     const original = join(home, "original.drawit.json"); await writeDocumentFile(original, createDocument("original"));
-    const before = await readFile(original, "utf8"); const linked = join(home, "documents/linked.drawit.json"); await symlink(original, linked);
+    const before = await readFile(original, "utf8"); const linked = join(home, "documents/linked.drawit.json");
+    if (!(await symlinkUnlessWin32Blocked(original, linked))) return;
     await expect(writeDocumentFile(linked, createDocument("attack"))).rejects.toThrow("regular file"); await expect(readDocumentFile(linked)).rejects.toThrow("regular file");
-    const linkedDirectory = join(home, "other"); await symlink(join(home, "exports"), linkedDirectory, "dir");
+    const linkedDirectory = join(home, "other");
+    if (!(await symlinkUnlessWin32Blocked(join(home, "exports"), linkedDirectory, "dir"))) return;
     await expect(writeExportFile(join(linkedDirectory, "attack.svg"), "attack")).rejects.toThrow("symbolic link");
     expect(await readFile(original, "utf8")).toBe(before);
   });
