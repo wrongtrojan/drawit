@@ -5,8 +5,8 @@ import { parseDocument } from "../packages/core/src/index.ts";
 import { renderReviewPng } from "../packages/render/src/png.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const input = resolve(root, "examples");
-const output = resolve(root, "examples/fig");
+const input = resolve(root, "examples/scenarios");
+const output = resolve(root, "examples/scenarios/fig");
 await mkdir(output, { recursive: true });
 const files = (await readdir(input)).filter((file) => file.endsWith(".drawit.json")).sort();
 for (const file of files) {

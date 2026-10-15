@@ -4,14 +4,23 @@ drawit 是本地技术图示编辑器。窗口里的修改，和 Agent 通过 MC
 
 ## 文档
 
-| 文档 | 读者 | 内容 |
-| --- | --- | --- |
-| [docs/guide.md](docs/guide.md) | 使用界面的人 | 绘图、快捷键、保存，以及怎样把图交给 Agent |
-| [docs/mcp.md](docs/mcp.md) | 接入 Agent 的人 | MCP 配置、调用顺序和工具 |
-| [docs/maintenance.md](docs/maintenance.md) | 修改代码的人 | 架构、检查和打包 |
-| [docs/scenarios.md](docs/scenarios.md) | 做绘图回归的人 | 交给 Agent 的固定提示词 |
-| [docs/academic-style.md](docs/academic-style.md) | 做学术图的人 | 默认字号、配色、矩阵与 arrangeRow 规范 |
-| [docs/evaluation.md](docs/evaluation.md) | 维护与发布的人 | 本轮改动、空白窗口与未验收项 |
+| 文档 | 内容 |
+| --- | --- |
+| [docs/guide.md](docs/guide.md) | 使用指南 |
+| [docs/mcp.md](docs/mcp.md) | MCP 配置、调用顺序和工具 |
+| [docs/maintenance.md](docs/maintenance.md) | 维护指南 |
+| [docs/scenarios.md](docs/scenarios.md) | 常用场景范例 |
+| [docs/academic.md](docs/academic.md) | 学术图验收范例 |
+
+## 桌面版快照
+
+图为 Windows 端使用 cursor composer 2.5 绘制计算机体系结构图，prompt 为 "请使用 drawit 绘制一张计算机体系结构图"。
+
+![桌面版快照](docs/images/desktop_windows.png)
+
+图为 Mac 端使用 gpt6-sol 绘制的计算机存储体系结构图, prompt 为 "请使用 drawit 绘制一张计算机存储体系结构图, 要求内容详尽, 且样式美观"。
+
+![桌面版快照](docs/images/desktop_mac.png)
 
 ## 能画什么
 

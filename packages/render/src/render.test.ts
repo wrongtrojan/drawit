@@ -40,7 +40,7 @@ it("rasterizes fractions as SVG paths while retaining LaTeX in user SVG", async 
 it.each(["sequence", "architecture", "class"])("round trips and reviews the %s semantic fixture", async (name) => {
   const { readFile } = await import("node:fs/promises");
   const { parseDocument, validateDocument } = await import("@drawit/core");
-  const document = parseDocument(JSON.parse(await readFile(new URL(`../../../examples/${name}.drawit.json`, import.meta.url), "utf8")));
+  const document = parseDocument(JSON.parse(await readFile(new URL(`../../../examples/scenarios/${name}.drawit.json`, import.meta.url), "utf8")));
   expect(parseDocument(JSON.parse(JSON.stringify(document)))).toEqual(document);
   expect(validateDocument(document).filter((issue) => issue.severity === "error")).toHaveLength(0);
   const review = await renderReviewPng(document);

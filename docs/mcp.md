@@ -1,10 +1,10 @@
 # 接入 MCP
 
-这份文档说明怎样把 drawit 接到 Cursor 或 Claude Desktop，以及工具怎样调用。界面操作见 [guide.md](guide.md)。
+这份文档说明怎样把 drawit 接入 Agent 工具，以及工具怎样调用。
 
 ## 安装版
 
-先打开编辑器，在状态栏点击“复制 MCP 配置”。生成的 JSON 用于 Cursor 和 Claude Desktop。命令使用当前系统的 drawit 程序和随包运行时，端口由应用发现。使用安装版时，本机不需要全局 Node。
+先打开编辑器，在底部状态栏点击“复制 MCP 配置”。生成的 JSON 用于 各 Agent 工具。命令使用当前系统的 drawit 程序和随包运行时，端口由应用发现。使用安装版时，本机不需要全局 Node。
 
 ## 开发版
 
@@ -63,4 +63,4 @@ stdio 接受 `initialize` 协议 `2024-11-05`、`2025-03-26`、`2025-06-18`，�
 
 类、ER 实体、ER 联系、状态、泳道、数轴、张量、里程碑分别使用 class、entity、relationship、state、swimlane、axis、tensor、timeline。数轴的 ticks 是 `{ value, label? }` 数组；里程碑使用 milestones 的 `{ date, label }` 数组，日期为有效 YYYY-MM-DD。有 parentId 的节点坐标相对父容器或泳道。时序消息和激活条示例包含必要的生命线。
 
-创建输入按类型校验，未知类型、错误字段或坏掉的语义关系拒绝整批。短字段列表保留有默认值的关键语义字段。需要实际绘制尺寸时查看 diagram_get 的 view.nodes.renderedWidth/renderedHeight；不要根据存储的最小宽高推断长文本节点的边界。
+创建输入按类型校验，未知类型、错误字段或坏掉的语义关系拒绝整批。短字段列表保留有默认值的关键语义字段。需要实际绘制尺寸时查看 `diagram_get` 的 `view.nodes.renderedWidth/renderedHeight`；不要根据存储的最小宽高推断长文本节点的边界。

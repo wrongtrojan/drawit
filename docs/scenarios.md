@@ -1,6 +1,6 @@
 # 绘图样本
 
-这份文档是 16 条代表样本。每条标题与 `examples/` 下的工程文件名相同，例如 `math-matrix` 对应 `examples/math-matrix.drawit.json`。覆盖数学、计算机、AI 和办公，以及类、ER、状态、泳道、数轴、里程碑、树、图和长文本。张量形状放在多头注意力里。复杂过程图用颜色区分角色。
+这份文档是 16 条代表样本。每条标题与 [`examples/scenarios/`](../examples/scenarios) 下的工程文件名相同，例如 `math-matrix` 对应 `examples/scenarios/math-matrix.drawit.json`。预览 PNG 在 `examples/scenarios/fig/`。覆盖数学、计算机、AI 和办公，以及类、ER、状态、泳道、数轴、里程碑、树、图和长文本。张量形状放在多头注意力里。复杂过程图用颜色区分角色。
 
 每条只要求画一张图，并已写明审查要求。通过看三件事：列出的对象都在；要求的关系还在；审查图里没有明显重叠、文字被裁切、箭头指错或标签挡住节点。工具返回成功表示图已经生成。提示词之外再指定对象或布局，测的就是另一条样本。
 

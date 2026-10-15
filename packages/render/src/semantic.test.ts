@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { materializeNode, parseDocument, stylePresets, treeLayout, graphLayout, edgeSchema, type DiagramDocument } from "@drawit/core";
 import { renderDocumentSvg, renderNodeInner, renderEdgePath } from "./svg.js";
 import { renderReviewPng } from "./png.js";
-const directory = new URL("../../../examples/", import.meta.url);
+const directory = new URL("../../../examples/scenarios/", import.meta.url);
 const files = (await readdir(directory)).filter((file) => file.endsWith(".drawit.json"));
 const scenarioNames = [...(await readFile(new URL("../../../docs/scenarios.md", import.meta.url), "utf8")).matchAll(/^### (.+)$/gm)].map((match) => match[1]!);
 async function loadExample(file: string): Promise<DiagramDocument> {
