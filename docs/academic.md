@@ -1,4 +1,4 @@
-# 学术验收图
+# 学术场景范例
 
 六张图用于检查矩阵、公式、配色与排版是否一致。工程与导出在 [`examples/academic/`](../examples/academic)；16 条通用场景见 [scenarios.md](scenarios.md) 与 [`examples/scenarios/`](../examples/scenarios)。
 

@@ -24,7 +24,7 @@
 - macOS：`~/Library/Application Support/drawit`
 - Linux：`$XDG_DATA_HOME/drawit`，未设置时是 `~/.local/share/drawit`
 
-`DRAWIT_HOME` 覆盖上述位置。覆盖之后，编辑器和 MCP 使用同一个目录。使用者看到的工程路径见 [guide.md](guide.md)。
+`DRAWIT_HOME` 覆盖上述位置。覆盖之后，编辑器和 MCP 使用同一个目录。使用者看到的工程路径见 [gui.md](gui.md)。
 
 `documents/*.drawit.json` 是工程，`exports/` 是导出，`session.json` 是端口和令牌。数据目录内写入先临时文件再替换；用户「保存 / 另存为 / 导出」到自选文件夹走 Tauri 的 `files.rs`，见下文「文件管理测试」。路径限制在文档目录和导出目录之内。
 
@@ -110,7 +110,7 @@ pnpm --filter @drawit/desktop build
 
 `packages/core/src/semantic.test.ts`：字段编辑、文件往返、版本冲突与非法回滚。`packages/render/src/semantic.test.ts`：`examples/scenarios/*.drawit.json` 与 PNG 快照。`SemanticFields.test.tsx`：属性面板。`packages/mcp/src/semantic.test.ts`：会话转发（需 Host 时可能本机跳过部分用例）。生成 PNG 成功只表示图已写出；关系、文字和箭头仍建议肉眼对照 [scenarios.md](scenarios.md)。
 
-### 打包
+### 安装包构建
 
 在目标系统和 CPU 架构上执行 `pnpm --filter @drawit/desktop tauri build`。构建会生成图标，打入当前平台的 Node 与 resvg，并把 MCP 和 Session Host 打成 CJS。安装后的桌面壳负责启动和关闭 Host，发布版不弹出控制台。Windows 上 Tauri 给出的程序路径带 `\\?\` 前缀，交给 Node 之前要去掉，否则会话脚本无法启动。会话进程的标准错误写到数据目录的 `session.log`。复制出来的 MCP 配置使用 `--mcp --runtime <安装资源目录>`。
 
@@ -121,20 +121,6 @@ pnpm --filter @drawit/desktop build
 ### 协议
 
 会话的 WebSocket 消息保持向后兼容。MCP 接受 `2024-11-05`、`2025-03-26` 和 `2025-06-18` 的 `initialize`，同时接受 `2026-07-28` 信封。`2026-07-28` 的 `initialize` 在入口映射为 SDK 的 `server/discover`。改协议时补 `packages/mcp/src/protocol.test.ts`。
-
-### 稳定性测试
-
-编辑器连接与快照由代际、会话标识及 documentEpoch 隔离。断线保留画面、暂停写入并重新订阅；超时的写请求不重放。根、画布和节点边界允许显式恢复，原生 WebView 故障需另行验证。
-
-`packages/core/src/limits.ts` 集中定义消息、对象、树、单元格、坐标、渲染时间及像素预算。内部 IO 拒绝链接文件和链接 documents/exports 目录；MCP 不接受任意磁盘路径。render-worker.cjs 必须随 Node 运行时一起打包。
-
-原安装版复现及新包压力测试使用隔离数据目录：
-
-```sh
-node scripts/stress-session.mjs --home=/absolute/test-home --iterations=10000 --duration=1800
-```
-
-此脚本只检查会话修订、同步和磁盘一致性；窗口观察、原生对话框、拖动缩放与 WebView 故障恢复必须单独验收，未结项见 [evaluation.md](evaluation.md)。不得把会话测试报告写作窗口视觉验收通过。
 
 ### 文件管理测试
 

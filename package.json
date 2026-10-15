@@ -1,5 +1,6 @@
 {
   "name": "drawit",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.9.1",

@@ -1,4 +1,4 @@
-# 绘图样本
+# 常用场景范例
 
 这份文档是 16 条代表样本。每条标题与 [`examples/scenarios/`](../examples/scenarios) 下的工程文件名相同，例如 `math-matrix` 对应 `examples/scenarios/math-matrix.drawit.json`。预览 PNG 在 `examples/scenarios/fig/`。覆盖数学、计算机、AI 和办公，以及类、ER、状态、泳道、数轴、里程碑、树、图和长文本。张量形状放在多头注意力里。复杂过程图用颜色区分角色。
 

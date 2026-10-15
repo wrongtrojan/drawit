@@ -8,6 +8,7 @@ src-tauri/target
 .vite
 coverage
 apps/desktop/src-tauri/target
+releases
 
 apps/desktop/src-tauri/runtime
 .pnpm-store
